@@ -550,6 +550,14 @@
             </tr>
           </thead>
           <tbody id="logBody"></tbody>
+          <tfoot id="loadMoreRow" style="display:none">
+            <tr>
+              <td colspan="5" style="text-align:center;padding:14px;border-bottom:none;">
+                <button class="btn btn-secondary btn-sm" id="loadMoreBtn">Load 50 more</button>
+                <span style="font-size:12px;color:var(--text-muted);margin-left:8px;" id="loadMoreInfo"></span>
+              </td>
+            </tr>
+          </tfoot>
         </table>
       </div>
     </div>
@@ -615,6 +623,10 @@ const state = {
   searchQuery: '',
   abortController: null,
   testerOpen: false,
+  loadedOffset: 0,
+  totalCount: 0,
+  loadMoreLoading: false,
+  pageSize: 50,
 };
 
 // DOM refs
@@ -648,6 +660,9 @@ const fileLabel = $('fileLabel');
 const fileUpload = $('fileUpload');
 const emptyStateSendBtn = $('emptyStateSendBtn');
 const presets = $('presets');
+const loadMoreBtn = $('loadMoreBtn');
+const loadMoreRow = $('loadMoreRow');
+const loadMoreInfo = $('loadMoreInfo');
 
 // ── Utility ───────────────────────────────────────────────
 function setStatus(conn) {
@@ -812,6 +827,16 @@ sendTestBtn.addEventListener('click', async () => {
     const body = await res.json();
     testerResponseBody.textContent = JSON.stringify(body, null, 2);
     testerResponse.className = 'tester-response visible ' + (res.ok ? 'success' : 'error');
+
+    // Immediately add the log entry to the table (works with or without SSE)
+    if (res.ok) {
+      addLogEntry(body);
+      // If SSE is disconnected but auto-reconnect is pending, show "Connecting..."
+      // Match the auto-reconnect timer's condition exactly
+      if (!state.connected && !state.connecting && state.apiKey && !state.intentionalDisconnect) {
+        setStatus('connecting');
+      }
+    }
   } catch (err) {
     testerResponseBody.textContent = 'Request failed: ' + err.message;
     testerResponse.className = 'tester-response visible error';
@@ -879,6 +904,18 @@ function renderLogs() {
   logBody.appendChild(fragment);
   logCount.textContent = state.logs.length;
   visibleCount.textContent = filtered.length;
+
+  // Show/hide load more button
+  if (!query && state.loadedOffset < state.totalCount && state.totalCount > state.logs.length) {
+    loadMoreRow.style.display = '';
+    const remaining = state.totalCount - state.loadedOffset;
+    const batchSize = Math.min(state.pageSize, remaining);
+    loadMoreBtn.textContent = `Load ${batchSize} more`;
+    loadMoreInfo.textContent = `(${state.logs.length} of ${state.totalCount})`;
+  } else {
+    loadMoreRow.style.display = 'none';
+  }
+
   if (state.autoScroll) requestAnimationFrame(() => scrollToBottomOfList());
 }
 
@@ -887,6 +924,7 @@ function addLogEntry(log) {
   if (state.logs.some(l => l.id === log.id)) return;
   log._isNew = true;
   state.logs.unshift(log);
+  state.loadedOffset++;  // one more entry exists above our loaded anchor
 
   if (!state.searchQuery) {
     const tr = document.createElement('tr');
@@ -910,20 +948,54 @@ function addLogEntry(log) {
 }
 
 // ── Load history ───────────────────────────────────────────
-async function loadHistory() {
+async function loadHistory(offset = 0) {
   try {
-    const res = await fetch('/logs?limit=100', {
+    const res = await fetch(`/logs?limit=${state.pageSize}&offset=${offset}`, {
       headers: { 'Authorization': `Bearer ${state.apiKey}` },
     });
     if (!res.ok) throw new Error(`Failed to load history (${res.status})`);
     const data = await res.json();
-    state.logs = data.items || [];
+    state.totalCount = data.total;
+    if (offset === 0) {
+      state.logs = data.items || [];
+      state.loadedOffset = data.items.length;
+    } else {
+      // Append older entries to the end (state.logs is newest-first)
+      state.logs.push(...(data.items || []));
+      state.loadedOffset += data.items.length;
+    }
     renderLogs();
   } catch (err) {
     console.error('History load error:', err);
     showError('Failed to load log history');
   }
 }
+
+// ── Load more (pagination) ──────────────────────────────────
+loadMoreBtn.addEventListener('click', async () => {
+  if (state.loadMoreLoading) return;
+  state.loadMoreLoading = true;
+  loadMoreBtn.textContent = 'Loading...';
+  loadMoreBtn.disabled = true;
+  try {
+    const res = await fetch(`/logs?limit=${state.pageSize}&offset=${state.loadedOffset}`, {
+      headers: { 'Authorization': `Bearer ${state.apiKey}` },
+    });
+    if (!res.ok) throw new Error(`Failed to load more (${res.status})`);
+    const data = await res.json();
+    state.logs.push(...(data.items || []));
+    state.loadedOffset += data.items.length;
+    renderLogs();
+  } catch (err) {
+    console.error('Load more error:', err);
+    showError('Failed to load more entries');
+  } finally {
+    state.loadMoreLoading = false;
+    loadMoreBtn.disabled = false;
+    // Reset button text (renderLogs will update it on success)
+    loadMoreBtn.textContent = 'Load more';
+  }
+});
 
 // ── SSE Connection ─────────────────────────────────────────
 async function connectSSE() {
@@ -944,7 +1016,17 @@ async function connectSSE() {
 
     state.connected = true; state.connecting = false;
     setStatus('connected'); connectBtn.textContent = 'Disconnect'; connectBtn.disabled = false;
-    if (state.logs.length === 0) await loadHistory();
+    if (state.logs.length === 0) {
+      await loadHistory();
+    } else {
+      // Refresh total count so load-more offset stays accurate
+      try {
+        const rr = await fetch('/logs?limit=1&offset=0', {
+          headers: { 'Authorization': `Bearer ${state.apiKey}` },
+        });
+        if (rr.ok) { const d = await rr.json(); state.totalCount = d.total; }
+      } catch {}
+    }
 
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
@@ -983,7 +1065,7 @@ function disconnectSSE() {
 // ── Clear ──────────────────────────────────────────────────
 clearBtn.addEventListener('click', () => {
   if (state.logs.length === 0) return;
-  if (confirm('Clear displayed logs?')) { state.logs = []; renderLogs(); }
+  if (confirm('Clear displayed logs?')) { state.logs = []; state.loadedOffset = 0; state.totalCount = 0; renderLogs(); }
 });
 
 // ── Connect/Disconnect ─────────────────────────────────────
