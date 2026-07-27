@@ -3,11 +3,11 @@
     Send webhooks to HookView — a real-time webhook log receiver.
 .DESCRIPTION
     Contains reusable functions for sending webhooks to a HookView server.
-    Supports string messages, JSON objects/arrays, optional file uploads,
-    and multipart form data.
+    HookView accepts ANY JSON payload — no required fields.
+    Supports objects, strings, arrays, numbers, booleans, null, and file uploads.
 .EXAMPLE
-    .\scripts\send-webhook.ps1 -Message "Deploy completed"
-    .\scripts\send-webhook.ps1 -Message '{"event":"deploy","status":"ok"}' -File ./build.zip
+    .\scripts\send-webhook.ps1
+    . .\scripts\send-webhook.ps1; Send-HookJson -Payload @{ event = "deploy" }
 #>
 
 # ── Configuration ──────────────────────────────────────────────────────────
@@ -20,20 +20,22 @@ $script:HookView_ApiKey  = if ($env:HOOKVIEW_API_KEY) { $env:HOOKVIEW_API_KEY } 
 
 <#
 .SYNOPSIS
-    Send a JSON webhook to HookView.
-.PARAMETER Message
-    The message value (string, or a JSON-serializable object/array).
+    Send any JSON value as a webhook payload to HookView.
+.PARAMETER Payload
+    Any value to send as the webhook body. Can be a hashtable, string, array, number, etc.
 .PARAMETER Server
     HookView server URL. Defaults to $env:HOOKVIEW_SERVER or http://localhost:8000.
 .PARAMETER ApiKey
     Bearer API key. Defaults to $env:HOOKVIEW_API_KEY.
 .EXAMPLE
-    Send-HookJson -Message "Hello world"
-    Send-HookJson -Message @{ event = "deploy"; status = "success" }
+    Send-HookJson -Payload @{ event = "deploy"; status = "success" }
+    Send-HookJson -Payload "A plain string message"
+    Send-HookJson -Payload @(1, 2, 3)
+    Send-HookJson -Payload $null
 #>
 function Send-HookJson {
     param(
-        [Parameter(Mandatory = $true)] $Message,
+        [Parameter(Mandatory = $true)] $Payload,
         [string] $Server = $script:HookView_Server,
         [string] $ApiKey = $script:HookView_ApiKey
     )
@@ -43,7 +45,12 @@ function Send-HookJson {
         return $null
     }
 
-    $body = @{ message = $Message } | ConvertTo-Json -Depth 10 -Compress
+    # Convert payload to JSON string.
+    if ($null -eq $Payload) {
+        $body = "null"
+    } else {
+        $body = $Payload | ConvertTo-Json -Depth 20 -Compress
+    }
 
     try {
         $response = Invoke-RestMethod -Uri "$Server/webhook" `
@@ -55,8 +62,9 @@ function Send-HookJson {
             -Body $body `
             -ErrorAction Stop
 
+        $display = if ($response.payload -is [string]) { $response.payload } else { $response.payload | ConvertTo-Json -Compress }
         Write-Host "[✓] Log #$($response.id) created" -ForegroundColor Green
-        Write-Host "    message: $($response.message)" -ForegroundColor Cyan
+        Write-Host "    payload: $display" -ForegroundColor Cyan
         if ($response.filename) {
             Write-Host "    file:    $($response.filename)" -ForegroundColor Yellow
         }
@@ -70,21 +78,22 @@ function Send-HookJson {
 
 <#
 .SYNOPSIS
-    Send a multipart webhook to HookView with optional file upload.
-.PARAMETER Message
-    The message string or JSON value.
+    Send a multipart webhook with custom form fields and optional file upload.
+.PARAMETER Fields
+    Hashtable of form fields to send. All fields become the JSON payload object.
 .PARAMETER FilePath
-    Path to an optional file to upload.
+    Path to an optional file to upload (sent as the 'file' field).
 .PARAMETER Server
     HookView server URL.
 .PARAMETER ApiKey
     Bearer API key.
 .EXAMPLE
-    Send-HookMultipart -Message "Log with file" -FilePath ./report.pdf
+    Send-HookMultipart -Fields @{ event = "deploy"; service = "api" }
+    Send-HookMultipart -Fields @{ note = "Report" } -FilePath ./report.pdf
 #>
 function Send-HookMultipart {
     param(
-        [Parameter(Mandatory = $true)] $Message,
+        [Parameter(Mandatory = $true)] [hashtable] $Fields,
         [string] $FilePath = "",
         [string] $Server = $script:HookView_Server,
         [string] $ApiKey = $script:HookView_ApiKey
@@ -95,46 +104,42 @@ function Send-HookMultipart {
         return $null
     }
 
-    # Convert message to string for multipart (server will parse as JSON if valid)
-    $messageStr = $Message
-    if ($Message -is [hashtable] -or $Message -is [pscustomobject] -or $Message -is [array]) {
-        $messageStr = $Message | ConvertTo-Json -Depth 10 -Compress
-    }
-
     $uri = "$Server/webhook"
     $headers = @{ "Authorization" = "Bearer $ApiKey" }
 
-    if ($FilePath -and (Test-Path $FilePath)) {
-        Write-Host "[i] Uploading file: $FilePath" -ForegroundColor Yellow
-        $form = @{
-            message = $messageStr
-            file    = Get-Item -Path $FilePath
-        }
-        try {
-            $response = Invoke-RestMethod -Uri $uri -Method Post -Headers $headers -Form $form -ErrorAction Stop
-        }
-        catch {
-            Write-Error "Failed to send multipart webhook: $_"
-            return $null
-        }
-    }
-    else {
-        $body = @{ message = $messageStr }
-        try {
-            $response = Invoke-RestMethod -Uri $uri -Method Post -Headers $headers -Body $body -ErrorAction Stop
-        }
-        catch {
-            Write-Error "Failed to send webhook: $_"
-            return $null
+    # Build form data: simple values as strings, files via Get-Item
+    $form = @{ }
+    foreach ($key in $Fields.Keys) {
+        $val = $Fields[$key]
+        if ($val -is [string] -or $val -is [int] -or $val -is [double] -or $val -is [bool]) {
+            $form[$key] = "$val"
+        } elseif ($val -is [hashtable] -or $val -is [array] -or $val -is [pscustomobject]) {
+            $form[$key] = ($val | ConvertTo-Json -Compress)
+        } else {
+            $form[$key] = "$val"
         }
     }
 
-    Write-Host "[✓] Log #$($response.id) created" -ForegroundColor Green
-    Write-Host "    message: $($response.message)" -ForegroundColor Cyan
-    if ($response.filename) {
-        Write-Host "    file:    $($response.filename)" -ForegroundColor Yellow
+    if ($FilePath -and (Test-Path $FilePath)) {
+        Write-Host "[i] Uploading file: $FilePath" -ForegroundColor Yellow
+        $form["file"] = Get-Item -Path $FilePath
     }
-    return $response
+
+    try {
+        $response = Invoke-RestMethod -Uri $uri -Method Post -Headers $headers -Form $form -ErrorAction Stop
+
+        $display = if ($response.payload -is [string]) { $response.payload } else { $response.payload | ConvertTo-Json -Compress }
+        Write-Host "[✓] Log #$($response.id) created" -ForegroundColor Green
+        Write-Host "    payload: $display" -ForegroundColor Cyan
+        if ($response.filename) {
+            Write-Host "    file:    $($response.filename)" -ForegroundColor Yellow
+        }
+        return $response
+    }
+    catch {
+        Write-Error "Failed to send multipart webhook: $_"
+        return $null
+    }
 }
 
 <#
@@ -167,8 +172,8 @@ function Get-HookLogs {
 
         Write-Host "[i] $($response.total) total logs, showing $($response.items.Count)" -ForegroundColor Cyan
         foreach ($log in $response.items) {
-            $msg = if ($log.message -is [string]) { $log.message } else { $log.message | ConvertTo-Json -Compress }
-            Write-Host "  #$($log.id) [$($log.timestamp)] $($log.ip_address) → $msg" -ForegroundColor Gray
+            $payload = if ($log.payload -is [string]) { $log.payload } else { $log.payload | ConvertTo-Json -Compress }
+            Write-Host "  #$($log.id) [$($log.timestamp)] $($log.ip_address) → $payload" -ForegroundColor Gray
             if ($log.filename) { Write-Host "         file: $($log.filename)" -ForegroundColor DarkYellow }
         }
         return $response
@@ -184,14 +189,11 @@ function Get-HookLogs {
 if ($MyInvocation.InvocationName -ne '.') {
     Write-Host "══════════════════════════════════════════════" -ForegroundColor Magenta
     Write-Host "  HookView - Webhook Sender Examples"          -ForegroundColor Magenta
+    Write-Host "  (send any JSON payload — no required fields)" -ForegroundColor Gray
     Write-Host "══════════════════════════════════════════════" -ForegroundColor Magenta
 
-    # ── Example 1: Simple string message ──
-    Write-Host "`n[1/4] Sending simple string message..." -ForegroundColor Cyan
-    Send-HookJson -Message "Hello from PowerShell! 🚀"
-
-    # ── Example 2: JSON object message ──
-    Write-Host "`n[2/4] Sending structured JSON object..." -ForegroundColor Cyan
+    # ── Example 1: Full JSON object payload ──
+    Write-Host "`n[1/4] Sending structured JSON object... (recommended)" -ForegroundColor Cyan
     $payload = @{
         event    = "deploy"
         service  = "api-gateway"
@@ -199,11 +201,15 @@ if ($MyInvocation.InvocationName -ne '.') {
         duration = 3421
         status   = "success"
     }
-    Send-HookJson -Message $payload
+    Send-HookJson -Payload $payload
 
-    # ── Example 3: Array message ──
-    Write-Host "`n[3/4] Sending array message..." -ForegroundColor Cyan
-    Send-HookJson -Message @(1, 2, 3, "complete")
+    # ── Example 2: String payload (not wrapped in object) ──
+    Write-Host "`n[2/4] Sending a plain string (no object wrapper)..." -ForegroundColor Cyan
+    Send-HookJson -Payload "Hello from PowerShell! 🚀"
+
+    # ── Example 3: Array as payload ──
+    Write-Host "`n[3/4] Sending an array as the payload..." -ForegroundColor Cyan
+    Send-HookJson -Payload @(1, 2, 3, "complete")
 
     # ── Example 4: Fetch recent logs ──
     Write-Host "`n[4/4] Fetching recent logs..." -ForegroundColor Cyan
@@ -212,6 +218,6 @@ if ($MyInvocation.InvocationName -ne '.') {
     Write-Host "`n══════════════════════════════════════════════" -ForegroundColor Magenta
     Write-Host "  Done! Import functions with:"                  -ForegroundColor Gray
     Write-Host "  . .\scripts\send-webhook.ps1"                  -ForegroundColor Yellow
-    Write-Host "  Send-HookJson -Message 'test'"                 -ForegroundColor Yellow
+    Write-Host "  Send-HookJson -Payload @{ event = 'deploy'; status = 'ok' }" -ForegroundColor Yellow
     Write-Host "══════════════════════════════════════════════" -ForegroundColor Magenta
 }

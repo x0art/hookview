@@ -19,37 +19,6 @@ from pydantic import BaseModel, Field
 # ── Schema Models ────────────────────────────────────────────────────────────
 
 
-class WebhookPayload(BaseModel):
-    """
-    Payload for the POST /webhook endpoint (JSON content type).
-
-    The `message` field accepts **any valid JSON type**:
-    - **string** — simple text message
-    - **object** — structured event data
-    - **array** — list of values
-    - **number** — numeric payload
-    - **boolean** — flag value
-    - **null** — empty/null payload
-    """
-
-    model_config = {"extra": "forbid"}
-
-    message: Any = Field(
-        ...,
-        description="The log message. Accepts any valid JSON type.",
-        json_schema_extra={
-            "examples": [
-                "Deployment completed successfully",
-                {"event": "deploy", "status": "success"},
-                [1, 2, 3],
-                42,
-                True,
-                None,
-            ]
-        },
-    )
-
-
 class LogEntryResponse(BaseModel):
     """A single log entry captured by the webhook receiver."""
 
@@ -60,14 +29,14 @@ class LogEntryResponse(BaseModel):
     ip_address: str = Field(
         ..., description="Originating IP address derived from the connection"
     )
-    message: Any = Field(
+    payload: Any = Field(
         ...,
-        description="The log message. Can be any JSON type: string, object, array, number, boolean, or null.",
+        description="The full webhook payload. Can be any JSON value: object, string, array, number, boolean, or null.",
         json_schema_extra={
             "examples": [
-                "Deployment completed successfully",
                 {"event": "deploy", "status": "success", "duration_ms": 1234},
-                [1, 2, 3, "test"],
+                "Deployment completed successfully",
+                [1, 2, 3, "note"],
                 42,
                 True,
                 None,
@@ -95,9 +64,9 @@ class ErrorResponse(BaseModel):
 # ── Helper ──────────────────────────────────────────────────────────────────
 
 
-def _parse_stored_message(stored: str):
-    """Try to parse a stored message back to its original JSON type.
-    Falls back to raw string for backward compatibility with old entries."""
+def _parse_stored_payload(stored: str):
+    """Try to parse a stored payload back to its original JSON type.
+    Falls back to raw string if it wasn't valid JSON."""
     try:
         return json.loads(stored)
     except (json.JSONDecodeError, TypeError):
@@ -143,24 +112,25 @@ Include it in requests as:
 Authorization: Bearer <your-api-key>
 ```
 
-## Message Types
+## Payload
 
-The `message` field in a webhook payload is **not limited to strings** —
-it accepts any valid JSON value:
+Unlike traditional webhook receivers that expect a specific schema,
+HookView accepts **any JSON body** you send. The entire payload is stored
+and streamed back as-is.
 
-| Type     | Example                                   |
-|----------|-------------------------------------------|
-| string   | `"Deployment completed"`                  |
-| object   | `{"event": "deploy", "status": "ok"}`      |
-| array    | `[1, 2, 3, "note"]`                       |
-| number   | `42`                                      |
-| boolean  | `true`                                    |
-| null     | `null`                                    |
+| Example                                     |
+|---------------------------------------------|
+| `{"event": "deploy", "status": "ok"}`       |
+| `{"message": "Hello", "severity": "info"}`  |
+| `{"temperature": 23.5, "unit": "celsius"}`  |
+| `"just a string"`                            |
+| `[1, 2, 3, "mixed"]`                         |
+| `42`                                         |
 
 ## Content Types
 
 The webhook endpoint accepts **both** `application/json` and `multipart/form-data`.
-Use multipart when you need to upload a file alongside the message.
+Use multipart when you need to upload a file alongside the payload.
     """,
     version="1.0.0",
     lifespan=lifespan,
@@ -235,7 +205,7 @@ async def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             timestamp TEXT NOT NULL,
             ip_address TEXT NOT NULL,
-            message TEXT NOT NULL,
+            payload TEXT NOT NULL,
             filename TEXT,
             created_at TEXT DEFAULT (datetime('now'))
         )
@@ -278,23 +248,29 @@ async def event_generator():
     response_model=LogEntryResponse,
     summary="Receive a webhook event",
     description="""
-Accepts a webhook payload as either **JSON** or **multipart/form-data**.
+Accepts **any** JSON payload — there are no required fields.
+
+The entire request body is stored as the log entry's payload.
 
 ## JSON request
 
 ```json
-{"message": "Deploy completed"}
+{"event": "deploy", "status": "success"}
 ```
 
-`message` accepts any JSON type — see the schema below for examples.
+Any valid JSON body is accepted:
+- **object**: `{"key": "value"}`
+- **string**: `"simple message"`
+- **array**: `[1, 2, 3]`
+- **number**: `42`
+- **boolean**: `true`
+- **null**: `null`
 
 ## Multipart request
 
-Send as `multipart/form-data` with:
-- **message** (required) — the log message string
+Send as `multipart/form-data` with any fields:
+- **Any form fields** are bundled into a JSON payload object
 - **file** (optional) — an uploaded file (max 1 GB)
-
-The response mirrors the same structure as the JSON endpoint.
     """,
     tags=["Webhook"],
     responses={
@@ -311,32 +287,34 @@ The response mirrors the same structure as the JSON endpoint.
             "model": ErrorResponse,
             "description": "Uploaded file exceeds the 1 GB limit",
         },
-        422: {
-            "model": ErrorResponse,
-            "description": "Validation error — see detail for specifics",
-        },
     },
     openapi_extra={
         "requestBody": {
             "content": {
                 "application/json": {
-                    "schema": WebhookPayload.model_json_schema(),
+                    "schema": {
+                        "description": "Any valid JSON value — object, string, array, number, boolean, or null.",
+                        "examples": [
+                            {"event": "deploy", "status": "success"},
+                            "simple string message",
+                            [1, 2, 3],
+                            42,
+                            True,
+                            None,
+                        ],
+                    },
                 },
                 "multipart/form-data": {
                     "schema": {
                         "type": "object",
-                        "required": ["message"],
                         "properties": {
-                            "message": {
-                                "type": "string",
-                                "description": "The log message. Will be parsed as JSON if possible, otherwise treated as a raw string.",
-                            },
                             "file": {
                                 "type": "string",
                                 "format": "binary",
                                 "description": "Optional file attachment (max 1 GB). Saved to the uploads/ directory.",
                             },
                         },
+                        "description": "Any form fields are stored as a JSON payload object. A file can be attached via the 'file' field.",
                     },
                 },
             },
@@ -348,18 +326,26 @@ async def receive_webhook(request: Request):
     ip_address = request.client.host
     timestamp = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
     saved_filename = None
-    message = None
+    payload = None
 
     content_type = request.headers.get("content-type", "").lower()
 
     if "multipart/form-data" in content_type or "application/x-www-form-urlencoded" in content_type:
-        # Parse form data (multipart with optional file)
+        # Parse form data — bundle all fields into a JSON payload
         form = await request.form()
-        raw_message = form.get("message")
-        file: StarletteUploadFile | None = form.get("file")
+        form_dict = {}
+        file: StarletteUploadFile | None = None
 
-        if raw_message is None:
-            raise HTTPException(status_code=422, detail="message field is required")
+        for key in form:
+            value = form.get(key)
+            if isinstance(value, StarletteUploadFile):
+                file = value
+            elif isinstance(value, str):
+                # Try to parse as JSON for flexibility
+                try:
+                    form_dict[key] = json.loads(value)
+                except (json.JSONDecodeError, TypeError):
+                    form_dict[key] = value
 
         if file and file.filename:
             content = await file.read()
@@ -371,48 +357,37 @@ async def receive_webhook(request: Request):
             file_path.write_bytes(content)
             saved_filename = safe_name
 
-        # Form values are always strings; try to parse as JSON for flexibility
-        try:
-            message = json.loads(raw_message)
-        except (json.JSONDecodeError, TypeError):
-            message = raw_message
+        payload = form_dict if form_dict else {}
+
     else:
-        # Parse JSON body
+        # Parse JSON body — accept any valid JSON value
         try:
-            body = await request.json()
+            payload = await request.json()
         except json.JSONDecodeError:
             raise HTTPException(status_code=400, detail="Invalid JSON body")
 
-        if not isinstance(body, dict):
-            raise HTTPException(status_code=422, detail="Request body must be a JSON object")
-
-        if "message" not in body:
-            raise HTTPException(status_code=422, detail="message field is required")
-
-        message = body["message"]
-
     # Serialize for storage: always JSON-encode for lossless round-tripping
-    stored_message = json.dumps(message, ensure_ascii=False)
+    stored_payload = json.dumps(payload, ensure_ascii=False)
 
     # Insert into SQLite
     db = await aiosqlite.connect(str(DB_PATH))
     cursor = await db.execute(
-        "INSERT INTO logs (timestamp, ip_address, message, filename) VALUES (?, ?, ?, ?)",
-        (timestamp, ip_address, stored_message, saved_filename),
+        "INSERT INTO logs (timestamp, ip_address, payload, filename) VALUES (?, ?, ?, ?)",
+        (timestamp, ip_address, stored_payload, saved_filename),
     )
     await db.commit()
     log_id = cursor.lastrowid
     await db.close()
 
-    # Parse stored message back to its original JSON type for the response
-    display_message = _parse_stored_message(stored_message)
+    # Parse stored payload back to its original type for the response
+    display_payload = _parse_stored_payload(stored_payload)
 
     # Build response entry
     log_entry = {
         "id": log_id,
         "timestamp": timestamp,
         "ip_address": ip_address,
-        "message": display_message,
+        "payload": display_payload,
         "filename": saved_filename,
     }
 
@@ -503,7 +478,7 @@ async def get_logs(
     total = row["total"] if row else 0
 
     cursor = await db.execute(
-        "SELECT id, timestamp, ip_address, message, filename FROM logs ORDER BY id DESC LIMIT ? OFFSET ?",
+        "SELECT id, timestamp, ip_address, payload, filename FROM logs ORDER BY id DESC LIMIT ? OFFSET ?",
         (limit, offset),
     )
     rows = await cursor.fetchall()
@@ -514,7 +489,7 @@ async def get_logs(
             "id": row["id"],
             "timestamp": row["timestamp"],
             "ip_address": row["ip_address"],
-            "message": _parse_stored_message(row["message"]),
+            "payload": _parse_stored_payload(row["payload"]),
             "filename": row["filename"],
         }
         for row in rows

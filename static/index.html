@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Log Receiver</title>
+<title>HookView</title>
 <style>
   /* ── Reset & Base ─────────────────────────────────────── */
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -33,8 +33,6 @@
     --shadow: 0 4px 24px rgba(0,0,0,0.3);
     --font-mono: 'SF Mono', 'Fira Code', 'Cascadia Code', 'JetBrains Mono', 'Consolas', monospace;
     --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-    --header-h: 64px;
-    --toolbar-h: 52px;
   }
 
   html { font-size: 14px; }
@@ -42,14 +40,13 @@
     font-family: var(--font-sans);
     background: var(--bg-primary);
     color: var(--text-primary);
-    min-height: 100vh;
+    height: 100vh;
     overflow: hidden;
     background-image:
       radial-gradient(ellipse 80% 60% at 50% -20%, rgba(34,211,238,0.06) 0%, transparent 100%),
       radial-gradient(ellipse 40% 40% at 80% 80%, rgba(167,139,250,0.04) 0%, transparent 100%);
   }
 
-  /* ── Scrollbar ────────────────────────────────────────── */
   ::-webkit-scrollbar { width: 6px; height: 6px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 3px; }
@@ -57,69 +54,58 @@
 
   /* ── Layout ──────────────────────────────────────────────── */
   .app { display: flex; flex-direction: column; height: 100vh; }
+  .main-area { display: flex; flex: 1; overflow: hidden; }
+  .log-column { display: flex; flex-direction: column; flex: 1; min-width: 0; }
 
   /* ── Header ──────────────────────────────────────────────── */
   .header {
-    height: var(--header-h);
+    height: 56px;
     display: flex; align-items: center; justify-content: space-between;
-    padding: 0 24px;
+    padding: 0 20px;
     background: var(--bg-secondary);
     border-bottom: 1px solid var(--border);
-    backdrop-filter: blur(12px);
     flex-shrink: 0;
-    position: relative;
-    z-index: 10;
   }
-
-  .header-left { display: flex; align-items: center; gap: 14px; }
+  .header-left { display: flex; align-items: center; gap: 12px; }
   .logo {
-    width: 32px; height: 32px;
+    width: 28px; height: 28px;
     background: linear-gradient(135deg, var(--accent), var(--purple));
-    border-radius: 8px;
+    border-radius: 6px;
     display: flex; align-items: center; justify-content: center;
-    font-size: 16px; color: #fff;
-    box-shadow: 0 0 20px rgba(34,211,238,0.2);
+    font-size: 13px; color: #000;
+    font-weight: 700;
+    font-family: var(--font-mono);
   }
-  .logo svg { width: 18px; height: 18px; fill: currentColor; }
-
-  .title {
-    font-size: 16px; font-weight: 600; letter-spacing: -0.01em;
-    background: linear-gradient(135deg, var(--text-primary) 60%, var(--text-secondary));
-    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-    background-clip: text;
-  }
+  .title { font-size: 15px; font-weight: 600; }
   .title-docs {
     font-size: 11px; color: var(--text-muted);
     background: var(--bg-card); padding: 2px 8px;
     border-radius: 4px; border: 1px solid var(--border);
-    text-decoration: none; transition: all 0.15s;
-    -webkit-text-fill-color: var(--text-muted);
+    text-decoration: none;
   }
-  .title-docs:hover { border-color: var(--accent-dim); color: var(--accent); -webkit-text-fill-color: var(--accent); }
+  .title-docs:hover { border-color: var(--accent-dim); color: var(--accent); }
+  .header-right { display: flex; align-items: center; gap: 12px; }
 
-  .header-right { display: flex; align-items: center; gap: 16px; }
-
-  /* ── Status badge ──────────────────────────────────────── */
   .status {
-    display: flex; align-items: center; gap: 8px;
+    display: flex; align-items: center; gap: 6px;
     font-size: 12px; font-weight: 500;
-    padding: 6px 14px;
+    padding: 4px 12px;
     border-radius: 20px;
     border: 1px solid var(--border);
     background: var(--bg-card);
-    transition: all 0.3s;
   }
   .status-dot {
-    width: 8px; height: 8px; border-radius: 50%;
+    width: 7px; height: 7px; border-radius: 50%;
     transition: background 0.3s, box-shadow 0.3s;
   }
-  .status-dot.connected { background: var(--status-connected); box-shadow: 0 0 8px rgba(52,211,153,0.5); }
+  .status-dot.connected { background: var(--status-connected); box-shadow: 0 0 6px rgba(52,211,153,0.5); }
   .status-dot.disconnected { background: var(--status-disconnected); }
   .status-dot.connecting { background: var(--status-connecting); animation: pulse 1s ease-in-out infinite; }
-  .status-label { color: var(--text-secondary); }
+  .status-label { color: var(--text-secondary); font-size: 12px; }
+
   .count-badge {
     font-size: 12px; font-weight: 600;
-    background: var(--bg-card); padding: 4px 12px;
+    background: var(--bg-card); padding: 4px 10px;
     border-radius: 20px; border: 1px solid var(--border);
     color: var(--text-secondary);
   }
@@ -127,21 +113,18 @@
 
   @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
 
-  /* ── API Key Input ──────────────────────────────────────── */
+  /* ── Auth Bar ────────────────────────────────────────── */
   .auth-bar {
-    display: flex; align-items: center; gap: 10px;
-    padding: 12px 24px;
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 20px;
     background: var(--bg-secondary);
     border-bottom: 1px solid var(--border);
     flex-shrink: 0;
   }
-  .auth-bar label {
-    font-size: 12px; font-weight: 500; color: var(--text-secondary);
-    white-space: nowrap;
-  }
+  .auth-bar label { font-size: 12px; font-weight: 500; color: var(--text-secondary); white-space: nowrap; }
   .auth-input {
-    flex: 1; max-width: 360px;
-    padding: 8px 14px;
+    flex: 1; max-width: 300px;
+    padding: 7px 12px;
     background: var(--bg-card);
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
@@ -149,13 +132,12 @@
     font-family: var(--font-mono);
     font-size: 13px;
     outline: none;
-    transition: border-color 0.2s;
   }
   .auth-input:focus { border-color: var(--accent-dim); }
   .auth-input::placeholder { color: var(--text-muted); font-family: var(--font-sans); }
 
   .btn {
-    padding: 8px 18px;
+    padding: 7px 16px;
     border: none; border-radius: var(--radius-sm);
     font-size: 13px; font-weight: 500;
     cursor: pointer;
@@ -164,85 +146,59 @@
     white-space: nowrap;
   }
   .btn:active { transform: scale(0.97); }
-
-  .btn-primary {
-    background: linear-gradient(135deg, var(--accent-dim), var(--accent));
-    color: #000;
-  }
-  .btn-primary:hover { box-shadow: 0 0 20px rgba(34,211,238,0.3); }
+  .btn-primary { background: linear-gradient(135deg, var(--accent-dim), var(--accent)); color: #000; }
+  .btn-primary:hover { box-shadow: 0 0 16px rgba(34,211,238,0.25); }
   .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: none; }
-
-  .btn-secondary {
-    background: var(--bg-card);
-    color: var(--text-secondary);
-    border: 1px solid var(--border);
-  }
+  .btn-secondary { background: var(--bg-card); color: var(--text-secondary); border: 1px solid var(--border); }
   .btn-secondary:hover { background: var(--bg-hover); border-color: var(--border-light); color: var(--text-primary); }
-
-  .btn-danger {
-    background: rgba(248,113,113,0.15);
-    color: var(--red);
-    border: 1px solid rgba(248,113,113,0.25);
-  }
+  .btn-danger { background: rgba(248,113,113,0.15); color: var(--red); border: 1px solid rgba(248,113,113,0.25); }
   .btn-danger:hover { background: rgba(248,113,113,0.25); }
+  .btn-sm { padding: 5px 12px; font-size: 12px; }
 
-  .error-msg {
-    font-size: 12px; color: var(--red);
-    display: none;
-  }
+  .error-msg { font-size: 12px; color: var(--red); display: none; }
   .error-msg.visible { display: block; }
 
   /* ── Toolbar ────────────────────────────────────────────── */
   .toolbar {
-    display: flex; align-items: center; gap: 12px;
-    padding: 10px 24px;
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 20px;
     background: var(--bg-secondary);
     border-bottom: 1px solid var(--border);
     flex-shrink: 0;
   }
-
-  .search-box {
-    flex: 1; max-width: 320px;
-    position: relative;
-  }
+  .search-box { flex: 1; max-width: 280px; position: relative; }
   .search-box svg {
-    position: absolute; left: 10px; top: 50%; transform: translateY(-50%);
-    width: 14px; height: 14px; fill: var(--text-muted);
+    position: absolute; left: 9px; top: 50%; transform: translateY(-50%);
+    width: 13px; height: 13px; fill: var(--text-muted);
     pointer-events: none;
   }
   .search-input {
     width: 100%;
-    padding: 7px 14px 7px 32px;
+    padding: 6px 12px 6px 28px;
     background: var(--bg-card);
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
     color: var(--text-primary);
     font-size: 13px;
     outline: none;
-    transition: border-color 0.2s;
   }
   .search-input:focus { border-color: var(--accent-dim); }
   .search-input::placeholder { color: var(--text-muted); }
+  .toolbar-right { display: flex; align-items: center; gap: 6px; margin-left: auto; }
 
-  .toolbar-right { display: flex; align-items: center; gap: 8px; margin-left: auto; }
-
-  .toggle {
-    display: flex; align-items: center; gap: 6px;
-    font-size: 12px; color: var(--text-secondary);
-    cursor: pointer; user-select: none;
-  }
+  .toggle { display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--text-secondary); cursor: pointer; user-select: none; }
   .toggle-track {
-    width: 34px; height: 20px;
+    width: 32px; height: 18px;
     background: var(--bg-card);
     border: 1px solid var(--border);
-    border-radius: 10px;
+    border-radius: 9px;
     position: relative;
     transition: all 0.2s;
     cursor: pointer;
   }
   .toggle-track.active { background: var(--accent-dim); border-color: var(--accent); }
   .toggle-knob {
-    width: 14px; height: 14px;
+    width: 12px; height: 12px;
     background: var(--text-primary);
     border-radius: 50%;
     position: absolute; top: 2px; left: 2px;
@@ -252,7 +208,7 @@
   .toggle-label { font-size: 12px; color: var(--text-secondary); }
 
   .btn-icon {
-    width: 32px; height: 32px;
+    width: 30px; height: 30px;
     display: flex; align-items: center; justify-content: center;
     background: transparent;
     border: 1px solid var(--border);
@@ -262,29 +218,128 @@
     color: var(--text-muted);
   }
   .btn-icon:hover { background: var(--bg-card); color: var(--text-secondary); border-color: var(--border-light); }
-  .btn-icon svg { width: 15px; height: 15px; fill: currentColor; }
+  .btn-icon svg { width: 14px; height: 14px; fill: currentColor; }
+
+  /* ── Tester Drawer ──────────────────────────────────────── */
+  .tester-overlay {
+    position: fixed; inset: 0; z-index: 50;
+    background: rgba(0,0,0,0.5);
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.25s;
+  }
+  .tester-overlay.open { opacity: 1; pointer-events: auto; }
+
+  .tester-drawer {
+    position: fixed; top: 0; right: -480px; width: 480px; height: 100%;
+    z-index: 60;
+    background: var(--bg-secondary);
+    border-left: 1px solid var(--border);
+    transition: right 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+    display: flex; flex-direction: column;
+    box-shadow: -8px 0 32px rgba(0,0,0,0.4);
+  }
+  @media (max-width: 540px) { .tester-drawer { width: 100%; right: -100%; } }
+  .tester-drawer.open { right: 0; }
+
+  .tester-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  .tester-header h2 { font-size: 15px; font-weight: 600; }
+  .tester-close {
+    width: 30px; height: 30px;
+    display: flex; align-items: center; justify-content: center;
+    background: transparent; border: none; color: var(--text-muted);
+    cursor: pointer; border-radius: var(--radius-sm);
+    font-size: 18px;
+  }
+  .tester-close:hover { background: var(--bg-card); color: var(--text-primary); }
+
+  .tester-body { flex: 1; overflow-y: auto; padding: 16px 20px; }
+
+  .tester-section { margin-bottom: 16px; }
+  .tester-section label {
+    display: block; font-size: 12px; font-weight: 500;
+    color: var(--text-secondary); margin-bottom: 6px;
+  }
+
+  /* Preset chips */
+  .presets { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+  .preset-chip {
+    padding: 4px 10px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    background: var(--bg-card);
+    color: var(--text-secondary);
+    font-size: 11px;
+    font-family: var(--font-mono);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .preset-chip:hover { border-color: var(--accent-dim); color: var(--accent); background: rgba(8,145,178,0.1); }
+
+  /* JSON textarea */
+  .json-editor {
+    width: 100%;
+    min-height: 140px;
+    padding: 12px;
+    background: #060a18;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    line-height: 1.6;
+    resize: vertical;
+    outline: none;
+    tab-size: 2;
+  }
+  .json-editor:focus { border-color: var(--accent-dim); }
+  .json-editor::placeholder { color: var(--text-muted); font-family: var(--font-sans); font-size: 13px; }
+
+  /* File upload */
+  .file-upload {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 12px;
+    background: var(--bg-card);
+    border: 1px dashed var(--border);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+  }
+  .file-upload:hover { border-color: var(--border-light); }
+  .file-upload span { font-size: 12px; color: var(--text-muted); }
+  .file-upload.has-file { border-color: var(--accent-dim); border-style: solid; }
+  .file-upload input[type=file] { display: none; }
+
+  .tester-actions { display: flex; gap: 8px; margin-top: 12px; }
+
+  /* Response */
+  .tester-response {
+    margin-top: 12px;
+    padding: 12px;
+    background: #060a18;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    display: none;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    line-height: 1.6;
+    max-height: 200px;
+    overflow: auto;
+    white-space: pre-wrap;
+  }
+  .tester-response.visible { display: block; }
+  .tester-response.success { border-color: rgba(52,211,153,0.3); }
+  .tester-response.error { border-color: rgba(248,113,113,0.3); color: var(--red); }
+  .response-label { font-size: 11px; color: var(--text-muted); margin-bottom: 4px; }
 
   /* ── Log Table ──────────────────────────────────────────── */
-  .log-container {
-    flex: 1;
-    overflow-y: auto;
-    overflow-x: auto;
-  }
-
-  .log-table {
-    width: 100%;
-    border-collapse: separate;
-    border-spacing: 0;
-    table-layout: fixed;
-  }
-
-  .log-table thead {
-    position: sticky; top: 0;
-    z-index: 5;
-  }
-
+  .log-container { flex: 1; overflow-y: auto; overflow-x: auto; }
+  .log-table { width: 100%; border-collapse: separate; border-spacing: 0; table-layout: fixed; }
+  .log-table thead { position: sticky; top: 0; z-index: 5; }
   .log-table th {
-    padding: 10px 16px;
+    padding: 8px 14px;
     text-align: left;
     font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;
     color: var(--text-muted);
@@ -292,41 +347,47 @@
     border-bottom: 1px solid var(--border);
     user-select: none;
   }
-
   .log-table td {
-    padding: 10px 16px;
+    padding: 8px 14px;
     font-size: 13px;
     border-bottom: 1px solid rgba(30,42,80,0.4);
     vertical-align: top;
     line-height: 1.5;
   }
-
-  .log-table tbody tr {
-    transition: background 0.15s;
-    cursor: default;
-  }
+  .log-table tbody tr { transition: background 0.08s; }
   .log-table tbody tr:hover { background: var(--bg-hover); }
 
-  .col-id { width: 60px; }
-  .col-timestamp { width: 180px; }
-  .col-ip { width: 140px; }
+  .col-id { width: 50px; }
+  .col-timestamp { width: 170px; }
+  .col-ip { width: 130px; }
   .col-message { width: auto; }
-  .col-file { width: 120px; }
+  .col-file { width: 100px; }
 
   .log-id { color: var(--text-muted); font-family: var(--font-mono); font-size: 12px; }
-  .log-ts {
-    font-family: var(--font-mono); font-size: 12px; color: var(--text-secondary);
-    white-space: nowrap;
-  }
-  .log-ip {
-    font-family: var(--font-mono); font-size: 12px; color: var(--text-secondary);
-  }
+  .log-ts { font-family: var(--font-mono); font-size: 12px; color: var(--text-secondary); white-space: nowrap; }
+  .log-ip { font-family: var(--font-mono); font-size: 12px; color: var(--text-secondary); }
 
-  /* ── Message type colors ────────────────────────────────── */
-  .msg { font-family: var(--font-mono); font-size: 13px; word-break: break-word; }
+  /* ── Payload type colors ────────────────────────────────── */
+  .payload-type-badge {
+    display: inline-block;
+    font-size: 9px; font-weight: 600; text-transform: uppercase;
+    padding: 1px 6px;
+    border-radius: 3px;
+    margin-right: 6px;
+    vertical-align: middle;
+    letter-spacing: 0.03em;
+  }
+  .type-object { color: #fbbf24; background: rgba(251,191,36,0.1); }
+  .type-array  { color: #fbbf24; background: rgba(251,191,36,0.1); }
+  .type-string { color: #34d399; background: rgba(52,211,153,0.1); }
+  .type-number { color: #60a5fa; background: rgba(96,165,250,0.1); }
+  .type-boolean{ color: #a78bfa; background: rgba(167,139,250,0.1); }
+  .type-null   { color: #64748b; background: rgba(100,116,139,0.1); }
+
+  .msg { font-family: var(--font-mono); font-size: 13px; word-break: break-word; vertical-align: middle; }
   .msg-string { color: var(--green); }
-  .msg-string::before { content: '"'; opacity: 0.5; }
-  .msg-string::after { content: '"'; opacity: 0.5; }
+  .msg-string::before { content: '"'; opacity: 0.4; }
+  .msg-string::after { content: '"'; opacity: 0.4; }
   .msg-number { color: var(--blue); }
   .msg-boolean { color: var(--purple); }
   .msg-null { color: var(--text-muted); font-style: italic; }
@@ -337,28 +398,21 @@
     position: relative;
   }
   .msg-object:hover, .msg-array:hover { filter: brightness(1.2); }
-
-  .msg-object.expanded, .msg-array.expanded {
-    cursor: default;
-  }
+  .msg-object.expanded, .msg-array.expanded { cursor: default; }
   .msg-object.expanded:hover, .msg-array.expanded:hover { filter: none; }
 
-  .json-preview {
-    display: inline;
-    white-space: pre-wrap;
-  }
+  .json-preview { display: inline; white-space: pre-wrap; }
   .json-full {
     display: block;
     background: rgba(0,0,0,0.3);
     border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 10px 14px;
+    border-radius: 5px;
+    padding: 8px 12px;
     margin-top: 4px;
     font-size: 12px;
-    line-height: 1.6;
+    line-height: 1.5;
     overflow-x: auto;
-    max-height: 300px;
-    position: relative;
+    max-height: 280px;
   }
   .json-full .json-key { color: #93c5fd; }
   .json-full .json-string { color: var(--green); }
@@ -367,39 +421,26 @@
   .json-full .json-null { color: var(--text-muted); font-style: italic; }
   .json-full .json-bracket { color: var(--text-secondary); }
 
-  .log-file {
-    font-size: 12px; color: var(--text-muted);
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  }
+  .log-file { font-size: 12px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .log-file a { color: var(--accent-dim); text-decoration: none; }
   .log-file a:hover { text-decoration: underline; }
 
   /* ── New row animation ──────────────────────────────────── */
   @keyframes slideIn {
-    from {
-      opacity: 0;
-      transform: translateY(-12px);
-      background: rgba(34,211,238,0.08);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-      background: transparent;
-    }
+    from { opacity: 0; transform: translateY(-10px); background: rgba(34,211,238,0.06); }
+    to { opacity: 1; transform: translateY(0); background: transparent; }
   }
-  .log-table tbody tr.new-row {
-    animation: slideIn 0.4s ease-out;
-  }
+  .log-table tbody tr.new-row { animation: slideIn 0.35s ease-out; }
 
   /* ── Empty state ────────────────────────────────────────── */
   .empty-state {
     display: flex; flex-direction: column; align-items: center; justify-content: center;
-    padding: 80px 24px;
+    padding: 60px 24px;
     text-align: center;
   }
-  .empty-state svg { width: 48px; height: 48px; fill: var(--text-muted); opacity: 0.3; margin-bottom: 16px; }
-  .empty-state h3 { font-size: 16px; font-weight: 500; color: var(--text-secondary); margin-bottom: 6px; }
-  .empty-state p { font-size: 13px; color: var(--text-muted); max-width: 400px; line-height: 1.6; }
+  .empty-state svg { width: 40px; height: 40px; fill: var(--text-muted); opacity: 0.25; margin-bottom: 14px; }
+  .empty-state h3 { font-size: 15px; font-weight: 500; color: var(--text-secondary); margin-bottom: 6px; }
+  .empty-state p { font-size: 13px; color: var(--text-muted); max-width: 420px; line-height: 1.6; }
   .empty-state code {
     font-family: var(--font-mono); font-size: 12px;
     background: var(--bg-card); padding: 2px 8px; border-radius: 4px;
@@ -409,7 +450,7 @@
   /* ── Footer ────────────────────────────────────────────── */
   .footer {
     display: flex; align-items: center; justify-content: space-between;
-    padding: 8px 24px;
+    padding: 6px 20px;
     background: var(--bg-secondary);
     border-top: 1px solid var(--border);
     font-size: 12px; color: var(--text-muted);
@@ -420,20 +461,17 @@
 
   /* ── Responsive ──────────────────────────────────────────── */
   @media (max-width: 768px) {
-    .header { padding: 0 16px; }
-    .auth-bar { flex-wrap: wrap; padding: 12px 16px; }
+    .header, .auth-bar, .toolbar { padding-left: 14px; padding-right: 14px; }
     .auth-input { max-width: 100%; }
-    .toolbar { flex-wrap: wrap; padding: 10px 16px; }
     .search-box { max-width: 100%; flex-basis: 100%; }
     .toolbar-right { margin-left: 0; }
-    .col-id { width: 40px; }
-    .col-timestamp { width: 130px; }
-    .col-ip { width: 100px; }
+    .col-id { width: 35px; }
+    .col-timestamp { width: 120px; }
+    .col-ip { width: 90px; }
     .col-file { display: none; }
-    .log-table th, .log-table td { padding: 8px 10px; }
+    .log-table th, .log-table td { padding: 6px 8px; }
     .title-docs { display: none; }
   }
-
   @media (max-width: 480px) {
     .col-ip { display: none; }
     .count-badge { display: none; }
@@ -447,14 +485,12 @@
   <!-- ── Header ──────────────────────────────────────────── -->
   <header class="header">
     <div class="header-left">
-      <div class="logo">
-        <svg viewBox="0 0 24 24"><path d="M20 8h-2.81a5.985 5.985 0 0 0-1.82-1.96L17 4.41 15.59 3l-2.17 2.17C12.96 5.06 12.49 5 12 5c-.49 0-.96.06-1.41.17L8.41 3 7 4.41l1.62 1.63C7.88 6.55 7.26 7.22 6.81 8H4v2h2.09c-.05.33-.09.66-.09 1v1H4v2h2v1c0 .34.04.67.09 1H4v2h2.81c1.04 1.79 2.97 3 5.19 3s4.15-1.21 5.19-3H20v-2h-2.09c.05-.33.09-.66.09-1v-1h2v-2h-2v-1c0-.34-.04-.67-.09-1H20V8zm-6 8h-4v-2h4v2zm0-4h-4v-2h4v2z"/></svg>
-      </div>
-      <span class="title">Log Receiver</span>
-      <a class="title-docs" href="/docs" target="_blank">API Docs</a>
+      <div class="logo">H</div>
+      <span class="title">HookView</span>
+      <a class="title-docs" href="/docs" target="_blank">API</a>
     </div>
     <div class="header-right">
-      <div class="count-badge" id="countBadge">Total: <span id="logCount">0</span></div>
+      <div class="count-badge" id="countBadge"><span id="logCount">0</span> logs</div>
       <div class="status" id="status">
         <span class="status-dot disconnected" id="statusDot"></span>
         <span class="status-label" id="statusLabel">Disconnected</span>
@@ -464,7 +500,7 @@
 
   <!-- ── Auth Bar ────────────────────────────────────────── -->
   <div class="auth-bar">
-    <label for="apiKey">API Key</label>
+    <label for="apiKey">Key</label>
     <input type="password" id="apiKey" class="auth-input" placeholder="Enter your Bearer API key..." spellcheck="false" autocomplete="off">
     <button class="btn btn-primary" id="connectBtn">Connect</button>
     <span class="error-msg" id="errorMsg"></span>
@@ -474,47 +510,96 @@
   <div class="toolbar">
     <div class="search-box">
       <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
-      <input type="text" class="search-input" id="searchInput" placeholder="Filter logs..." spellcheck="false">
+      <input type="text" class="search-input" id="searchInput" placeholder="Filter payloads..." spellcheck="false">
     </div>
     <div class="toolbar-right">
+      <button class="btn btn-secondary btn-sm" id="testerBtn">✏️ Send</button>
       <div class="toggle" id="autoScrollToggle" title="Auto-scroll to new entries">
-        <div class="toggle-track active" id="scrollTrack">
-          <div class="toggle-knob"></div>
-        </div>
-        <span class="toggle-label">Auto-scroll</span>
+        <div class="toggle-track active" id="scrollTrack"><div class="toggle-knob"></div></div>
+        <span class="toggle-label">Scroll</span>
       </div>
-      <button class="btn-icon" id="clearBtn" title="Clear all logs">
+      <button class="btn-icon" id="clearBtn" title="Clear displayed logs">
         <svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
       </button>
     </div>
   </div>
 
-  <!-- ── Log Table ────────────────────────────────────────── -->
-  <div class="log-container" id="logContainer">
-    <div class="empty-state" id="emptyState">
-      <svg viewBox="0 0 24 24"><path d="M20 8h-2.81a5.985 5.985 0 0 0-1.82-1.96L17 4.41 15.59 3l-2.17 2.17C12.96 5.06 12.49 5 12 5c-.49 0-.96.06-1.41.17L8.41 3 7 4.41l1.62 1.63C7.88 6.55 7.26 7.22 6.81 8H4v2h2.09c-.05.33-.09.66-.09 1v1H4v2h2v1c0 .34.04.67.09 1H4v2h2.81c1.04 1.79 2.97 3 5.19 3s4.15-1.21 5.19-3H20v-2h-2.09c.05-.33.09-.66.09-1v-1h2v-2h-2v-1c0-.34-.04-.67-.09-1H20V8z"/></svg>
-      <h3>Waiting for logs</h3>
-      <p>Enter your API key above and click <strong>Connect</strong> to start receiving logs in real-time.</p>
-      <p style="margin-top: 8px;">Send a webhook with: <br><code>curl -X POST http://localhost:8000/webhook \<br>&nbsp;&nbsp;-H "Authorization: Bearer &lt;key&gt;" \<br>&nbsp;&nbsp;-H "Content-Type: application/json" \<br>&nbsp;&nbsp;-d '{"message": "Hello!"}'</code></p>
+  <!-- ── Main Content ────────────────────────────────────── -->
+  <div class="main-area">
+    <div class="log-column">
+      <div class="log-container" id="logContainer">
+        <div class="empty-state" id="emptyState">
+          <svg viewBox="0 0 24 24"><path d="M20 8h-2.81a5.985 5.985 0 0 0-1.82-1.96L17 4.41 15.59 3l-2.17 2.17C12.96 5.06 12.49 5 12 5c-.49 0-.96.06-1.41.17L8.41 3 7 4.41l1.62 1.63C7.88 6.55 7.26 7.22 6.81 8H4v2h2.09c-.05.33-.09.66-.09 1v1H4v2h2v1c0 .34.04.67.09 1H4v2h2.81c1.04 1.79 2.97 3 5.19 3s4.15-1.21 5.19-3H20v-2h-2.09c.05-.33.09-.66.09-1v-1h2v-2h-2v-1c0-.34-.04-.67-.09-1H20V8z"/></svg>
+          <h3>Waiting for logs</h3>
+          <p>Enter your API key above and click <strong>Connect</strong> to start receiving logs in real-time.</p>
+          <p style="margin-top:8px">
+            <button class="btn btn-secondary btn-sm" id="emptyStateSendBtn" style="margin-top:4px">✏️ Send a test webhook</button>
+          </p>
+          <p style="margin-top:12px;font-size:12px;color:var(--text-muted)">
+            HookView accepts <strong>any</strong> JSON payload — objects, strings, arrays, numbers, booleans, or null.
+          </p>
+        </div>
+        <table class="log-table" id="logTable" style="display:none">
+          <thead>
+            <tr>
+              <th class="col-id">#</th>
+              <th class="col-timestamp">Timestamp</th>
+              <th class="col-ip">IP</th>
+              <th class="col-message">Payload</th>
+              <th class="col-file">File</th>
+            </tr>
+          </thead>
+          <tbody id="logBody"></tbody>
+        </table>
+      </div>
     </div>
-    <table class="log-table" id="logTable" style="display:none">
-      <thead>
-        <tr>
-          <th class="col-id">#</th>
-          <th class="col-timestamp">Timestamp</th>
-          <th class="col-ip">IP Address</th>
-          <th class="col-message">Message</th>
-          <th class="col-file">File</th>
-        </tr>
-      </thead>
-      <tbody id="logBody"></tbody>
-    </table>
   </div>
 
   <!-- ── Footer ──────────────────────────────────────────── -->
   <div class="footer">
-    <span>FastAPI Log Receiver <span style="color:var(--border-light);margin:0 8px;">·</span> <span id="visibleCount">0</span> visible</span>
-    <span><a href="/docs" target="_blank">API Docs</a> <span style="color:var(--border-light);margin:0 8px;">·</span> <a href="javascript:void(0)" id="scrollToBottom">Bottom ↓</a></span>
+    <span><span id="visibleCount">0</span> visible</span>
+    <span><a href="/docs" target="_blank">API Docs</a> <span style="color:var(--border-light);margin:0 6px;">·</span> <a href="javascript:void(0)" id="scrollToBottom">Bottom ↓</a></span>
+  </div>
+</div>
+
+<!-- ── Tester Drawer ────────────────────────────────────── -->
+<div class="tester-overlay" id="testerOverlay"></div>
+<div class="tester-drawer" id="testerDrawer">
+  <div class="tester-header">
+    <h2>Send Test Webhook</h2>
+    <button class="tester-close" id="testerClose">✕</button>
+  </div>
+  <div class="tester-body">
+    <div class="tester-section">
+      <label>Presets</label>
+      <div class="presets" id="presets">
+        <span class="preset-chip" data-preset='{"event":"deploy","status":"success"}'>JSON object</span>
+        <span class="preset-chip" data-preset='"Hello from browser!"'>String</span>
+        <span class="preset-chip" data-preset='[1,2,3,"mixed"]'>Array</span>
+        <span class="preset-chip" data-preset='42'>Number</span>
+        <span class="preset-chip" data-preset='true'>Boolean</span>
+        <span class="preset-chip" data-preset='null'>Null</span>
+      </div>
+    </div>
+    <div class="tester-section">
+      <label for="payloadEditor">JSON Payload</label>
+      <textarea class="json-editor" id="payloadEditor" placeholder='{"event": "deploy", "status": "success"}' spellcheck="false"></textarea>
+    </div>
+    <div class="tester-section">
+      <label>File (optional)</label>
+      <div class="file-upload" id="fileUpload">
+        <input type="file" id="fileInput">
+        <span id="fileLabel">Click to attach a file, or drag one here</span>
+      </div>
+    </div>
+    <div class="tester-actions">
+      <button class="btn btn-primary" id="sendTestBtn">🚀 Send</button>
+      <button class="btn btn-secondary" id="clearTestBtn">Clear</button>
+    </div>
+    <div class="tester-response" id="testerResponse">
+      <div class="response-label">Response</div>
+      <span id="testerResponseBody"></span>
+    </div>
   </div>
 </div>
 
@@ -529,7 +614,7 @@ const state = {
   autoScroll: true,
   searchQuery: '',
   abortController: null,
-  nextId: 0,
+  testerOpen: false,
 };
 
 // DOM refs
@@ -549,6 +634,20 @@ const clearBtn = $('clearBtn');
 const scrollTrack = $('scrollTrack');
 const logContainer = $('logContainer');
 const scrollToBottom = $('scrollToBottom');
+const testerBtn = $('testerBtn');
+const testerDrawer = $('testerDrawer');
+const testerOverlay = $('testerOverlay');
+const testerClose = $('testerClose');
+const payloadEditor = $('payloadEditor');
+const sendTestBtn = $('sendTestBtn');
+const clearTestBtn = $('clearTestBtn');
+const testerResponse = $('testerResponse');
+const testerResponseBody = $('testerResponseBody');
+const fileInput = $('fileInput');
+const fileLabel = $('fileLabel');
+const fileUpload = $('fileUpload');
+const emptyStateSendBtn = $('emptyStateSendBtn');
+const presets = $('presets');
 
 // ── Utility ───────────────────────────────────────────────
 function setStatus(conn) {
@@ -556,13 +655,11 @@ function setStatus(conn) {
   const labels = { connected: 'Connected', disconnected: 'Disconnected', connecting: 'Connecting...' };
   statusLabel.textContent = labels[conn] || conn;
 }
-
 function showError(msg) {
   errorMsg.textContent = msg;
   errorMsg.classList.add('visible');
   setTimeout(() => errorMsg.classList.remove('visible'), 5000);
 }
-
 function formatTimestamp(ts) {
   try {
     const d = new Date(ts);
@@ -575,7 +672,18 @@ function formatTimestamp(ts) {
   } catch { return ts; }
 }
 
-function getMessageHTML(msg) {
+function getTypeBadge(val) {
+  if (val === null || val === undefined) return '<span class="payload-type-badge type-null">null</span>';
+  const t = typeof val;
+  if (t === 'string') return '<span class="payload-type-badge type-string">str</span>';
+  if (t === 'number') return '<span class="payload-type-badge type-number">num</span>';
+  if (t === 'boolean') return '<span class="payload-type-badge type-boolean">bool</span>';
+  if (Array.isArray(val)) return '<span class="payload-type-badge type-array">arr</span>';
+  if (t === 'object') return '<span class="payload-type-badge type-object">obj</span>';
+  return '';
+}
+
+function getPayloadHTML(msg) {
   const t = typeof msg;
   if (msg === null || msg === undefined) return '<span class="msg msg-null">null</span>';
   if (t === 'string') return `<span class="msg msg-string">${escapeHtml(msg)}</span>`;
@@ -609,7 +717,6 @@ function syntaxHighlight(json) {
     .replace(/\bnull\b/g, '<span class="json-null">null</span>');
 }
 
-// Toggle JSON expand/collapse
 function toggleJson(el) {
   const preview = el.querySelector('.json-preview');
   const full = el.querySelector('.json-full');
@@ -620,26 +727,111 @@ function toggleJson(el) {
   el.classList.toggle('expanded', !expanded);
 }
 
+// ── Tester Drawer ─────────────────────────────────────────
+function openTester() { state.testerOpen = true; testerDrawer.classList.add('open'); testerOverlay.classList.add('open'); }
+function closeTester() { state.testerOpen = false; testerDrawer.classList.remove('open'); testerOverlay.classList.remove('open'); }
+testerBtn.addEventListener('click', openTester);
+emptyStateSendBtn.addEventListener('click', openTester);
+testerClose.addEventListener('click', closeTester);
+testerOverlay.addEventListener('click', closeTester);
+
+// Preset chips
+presets.addEventListener('click', (e) => {
+  const chip = e.target.closest('.preset-chip');
+  if (!chip) return;
+  payloadEditor.value = chip.dataset.preset;
+  payloadEditor.dispatchEvent(new Event('input'));
+});
+
+// File upload
+fileUpload.addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', () => {
+  if (fileInput.files.length > 0) {
+    fileLabel.textContent = '📎 ' + fileInput.files[0].name;
+    fileUpload.classList.add('has-file');
+  } else {
+    fileLabel.textContent = 'Click to attach a file, or drag one here';
+    fileUpload.classList.remove('has-file');
+  }
+});
+
+// Clear test
+clearTestBtn.addEventListener('click', () => {
+  payloadEditor.value = '';
+  fileInput.value = '';
+  fileLabel.textContent = 'Click to attach a file, or drag one here';
+  fileUpload.classList.remove('has-file');
+  testerResponse.classList.remove('visible', 'success', 'error');
+});
+
+// Send test webhook
+sendTestBtn.addEventListener('click', async () => {
+  const apiKey = apiKeyInput.value.trim() || state.apiKey;
+  if (!apiKey) { showError('Enter an API key first'); return; }
+  const raw = payloadEditor.value.trim();
+  if (!raw) { showError('Enter a JSON payload'); return; }
+
+  // Validate JSON
+  let payload;
+  try { payload = JSON.parse(raw); } catch { showError('Invalid JSON'); return; }
+
+  sendTestBtn.disabled = true;
+  sendTestBtn.textContent = 'Sending...';
+  testerResponse.classList.remove('visible', 'success', 'error');
+
+  try {
+    const formData = new FormData();
+    formData.append('file', fileInput.files[0]);
+
+    let res;
+    if (fileInput.files.length > 0) {
+      // Multipart: send each JSON key as a separate form field
+      if (typeof payload !== 'object' || payload === null || Array.isArray(payload)) {
+        showError('File upload requires a JSON object payload (e.g., {"key": "value"})');
+        sendTestBtn.disabled = false;
+        sendTestBtn.textContent = '🚀 Send';
+        return;
+      }
+      for (const [key, val] of Object.entries(payload)) {
+        formData.append(key, typeof val === 'object' ? JSON.stringify(val) : String(val));
+      }
+      formData.append('file', fileInput.files[0]);
+      res = await fetch('/webhook', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${apiKey}` },
+        body: formData,
+      });
+    } else {
+      res = await fetch('/webhook', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+        body: raw,
+      });
+    }
+
+    const body = await res.json();
+    testerResponseBody.textContent = JSON.stringify(body, null, 2);
+    testerResponse.className = 'tester-response visible ' + (res.ok ? 'success' : 'error');
+  } catch (err) {
+    testerResponseBody.textContent = 'Request failed: ' + err.message;
+    testerResponse.className = 'tester-response visible error';
+  } finally {
+    sendTestBtn.disabled = false;
+    sendTestBtn.textContent = '🚀 Send';
+  }
+});
+
 // ── Auto-scroll ────────────────────────────────────────────
 scrollTrack.addEventListener('click', () => {
   state.autoScroll = !state.autoScroll;
   scrollTrack.classList.toggle('active', state.autoScroll);
   if (state.autoScroll) scrollToBottomOfList();
 });
-
 scrollToBottom.addEventListener('click', () => scrollToBottomOfList());
-
-function scrollToBottomOfList() {
-  requestAnimationFrame(() => {
-    logContainer.scrollTop = logContainer.scrollHeight;
-  });
-}
-
+function scrollToBottomOfList() { requestAnimationFrame(() => { logContainer.scrollTop = logContainer.scrollHeight; }); }
 function shouldAutoScroll() {
   if (!state.autoScroll) return false;
-  const threshold = 100;
-  const distFromBottom = logContainer.scrollHeight - logContainer.scrollTop - logContainer.clientHeight;
-  return distFromBottom <= threshold;
+  return (logContainer.scrollHeight - logContainer.scrollTop - logContainer.clientHeight) <= 100;
 }
 
 // ── Search / Filter ────────────────────────────────────────
@@ -654,111 +846,64 @@ function renderLogs() {
   let filtered = state.logs;
   if (query) {
     filtered = state.logs.filter(log => {
-      const msg = typeof log.message === 'string' ? log.message.toLowerCase() : JSON.stringify(log.message).toLowerCase();
-      return msg.includes(query) ||
-        log.ip_address.toLowerCase().includes(query) ||
-        log.timestamp.toLowerCase().includes(query);
+      const p = typeof log.payload === 'string' ? log.payload.toLowerCase() : JSON.stringify(log.payload).toLowerCase();
+      return p.includes(query) || log.ip_address.toLowerCase().includes(query) || log.timestamp.toLowerCase().includes(query);
     });
   }
   state.filteredLogs = filtered;
 
   if (state.logs.length === 0) {
-    emptyState.style.display = 'flex';
-    logTable.style.display = 'none';
-    visibleCount.textContent = '0';
+    emptyState.style.display = 'flex'; logTable.style.display = 'none'; visibleCount.textContent = '0';
     return;
   }
-  emptyState.style.display = 'none';
-  logTable.style.display = '';
+  emptyState.style.display = 'none'; logTable.style.display = '';
 
-  // Only re-render if we have changes since last render
-  // Use a DocumentFragment for performance
   const fragment = document.createDocumentFragment();
   for (const log of filtered) {
     const tr = document.createElement('tr');
     tr.dataset.id = log.id;
     if (log._isNew) { tr.classList.add('new-row'); delete log._isNew; }
 
-    // ID
-    const tdId = document.createElement('td');
-    tdId.className = 'log-id';
-    tdId.textContent = log.id;
+    const tdId = document.createElement('td'); tdId.className = 'log-id'; tdId.textContent = log.id;
+    const tdTs = document.createElement('td'); tdTs.className = 'log-ts'; tdTs.textContent = formatTimestamp(log.timestamp);
+    const tdIp = document.createElement('td'); tdIp.className = 'log-ip'; tdIp.textContent = log.ip_address;
+    const tdMsg = document.createElement('td'); tdMsg.innerHTML = getTypeBadge(log.payload) + getPayloadHTML(log.payload);
+    const tdFile = document.createElement('td'); tdFile.className = 'log-file';
+    tdFile.innerHTML = log.filename ? `<a href="/uploads/${log.filename}" target="_blank">📎 ${escapeHtml(log.filename)}</a>` : '—';
 
-    // Timestamp
-    const tdTs = document.createElement('td');
-    tdTs.className = 'log-ts';
-    tdTs.textContent = formatTimestamp(log.timestamp);
-
-    // IP
-    const tdIp = document.createElement('td');
-    tdIp.className = 'log-ip';
-    tdIp.textContent = log.ip_address;
-
-    // Message
-    const tdMsg = document.createElement('td');
-    tdMsg.innerHTML = getMessageHTML(log.message);
-
-    // File
-    const tdFile = document.createElement('td');
-    tdFile.className = 'log-file';
-    if (log.filename) {
-      tdFile.innerHTML = `<a href="/uploads/${log.filename}" target="_blank">📎 ${escapeHtml(log.filename)}</a>`;
-    } else {
-      tdFile.textContent = '—';
-    }
-
-    tr.appendChild(tdId);
-    tr.appendChild(tdTs);
-    tr.appendChild(tdIp);
-    tr.appendChild(tdMsg);
-    tr.appendChild(tdFile);
+    tr.appendChild(tdId); tr.appendChild(tdTs); tr.appendChild(tdIp); tr.appendChild(tdMsg); tr.appendChild(tdFile);
     fragment.appendChild(tr);
   }
 
   logBody.innerHTML = '';
   logBody.appendChild(fragment);
-
   logCount.textContent = state.logs.length;
   visibleCount.textContent = filtered.length;
-
-  if (state.autoScroll) {
-    requestAnimationFrame(() => scrollToBottomOfList());
-  }
+  if (state.autoScroll) requestAnimationFrame(() => scrollToBottomOfList());
 }
 
 // ── Add a single log entry (from SSE) ──────────────────────
 function addLogEntry(log) {
-  // Check for duplicates
   if (state.logs.some(l => l.id === log.id)) return;
-
   log._isNew = true;
   state.logs.unshift(log);
 
   if (!state.searchQuery) {
-    // Direct DOM insert at the top for performance
     const tr = document.createElement('tr');
-    tr.classList.add('new-row');
-    tr.dataset.id = log.id;
-
+    tr.classList.add('new-row'); tr.dataset.id = log.id;
     const tdId = document.createElement('td'); tdId.className = 'log-id'; tdId.textContent = log.id;
     const tdTs = document.createElement('td'); tdTs.className = 'log-ts'; tdTs.textContent = formatTimestamp(log.timestamp);
     const tdIp = document.createElement('td'); tdIp.className = 'log-ip'; tdIp.textContent = log.ip_address;
-    const tdMsg = document.createElement('td'); tdMsg.innerHTML = getMessageHTML(log.message);
+    const tdMsg = document.createElement('td'); tdMsg.innerHTML = getTypeBadge(log.payload) + getPayloadHTML(log.payload);
     const tdFile = document.createElement('td'); tdFile.className = 'log-file';
-    tdFile.textContent = log.filename ? '📎' : '—';
+    tdFile.innerHTML = log.filename ? `<a href="/uploads/${log.filename}" target="_blank">📎 ${escapeHtml(log.filename)}</a>` : '—';
 
     tr.appendChild(tdId); tr.appendChild(tdTs); tr.appendChild(tdIp); tr.appendChild(tdMsg); tr.appendChild(tdFile);
-
-    emptyState.style.display = 'none';
-    logTable.style.display = '';
+    emptyState.style.display = 'none'; logTable.style.display = '';
     logBody.prepend(tr);
-
     logCount.textContent = state.logs.length;
     visibleCount.textContent = state.logs.length;
-
-    if (shouldAutoScroll()) {
-      requestAnimationFrame(() => scrollToBottomOfList());
-    }
+    if (shouldAutoScroll()) requestAnimationFrame(() => scrollToBottomOfList());
   } else {
     renderLogs();
   }
@@ -783,12 +928,7 @@ async function loadHistory() {
 // ── SSE Connection ─────────────────────────────────────────
 async function connectSSE() {
   if (state.connecting) return;
-
-  if (!state.apiKey) {
-    showError('Please enter an API key');
-    return;
-  }
-
+  if (!state.apiKey) { showError('Please enter an API key'); return; }
   state.connecting = true;
   setStatus('connecting');
   connectBtn.textContent = 'Connecting...';
@@ -796,144 +936,74 @@ async function connectSSE() {
 
   try {
     state.abortController = new AbortController();
-    const { signal } = state.abortController;
-
     const response = await fetch('/stream', {
       headers: { 'Authorization': `Bearer ${state.apiKey}` },
-      signal,
+      signal: state.abortController.signal,
     });
+    if (!response.ok) throw new Error(response.status === 403 ? 'Invalid API key' : `HTTP ${response.status}`);
 
-    if (!response.ok) {
-      const errDetail = response.status === 403 ? 'Invalid API key' : `HTTP ${response.status}`;
-      throw new Error(errDetail);
-    }
+    state.connected = true; state.connecting = false;
+    setStatus('connected'); connectBtn.textContent = 'Disconnect'; connectBtn.disabled = false;
+    if (state.logs.length === 0) await loadHistory();
 
-    state.connected = true;
-    state.connecting = false;
-    setStatus('connected');
-    connectBtn.textContent = 'Disconnect';
-    connectBtn.disabled = false;
-
-    // Load history on first connect
-    if (state.logs.length === 0) {
-      await loadHistory();
-    }
-
-    // Read the SSE stream
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
-    let buffer = '';
-    let currentEvent = '';
-    let currentData = '';
-
+    let buf = '', evt = '', dat = '';
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
-
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
-      buffer = lines.pop() || '';
-
-      for (const line of lines) {
-        if (line.startsWith('event: ')) {
-          currentEvent = line.slice(7);
-        } else if (line.startsWith('data: ')) {
-          currentData = line.slice(6);
-        } else if (line === '' && currentEvent && currentData) {
-          // Empty line = event delimiter
-          if (currentEvent === 'log' && currentData) {
-            try {
-              const logEntry = JSON.parse(currentData);
-              addLogEntry(logEntry);
-            } catch (e) {
-              console.error('Failed to parse SSE log entry:', e);
-            }
-          }
-          currentEvent = '';
-          currentData = '';
+      buf += decoder.decode(value, { stream: true });
+      const lines = buf.split('\n');
+      buf = lines.pop() || '';
+      for (const l of lines) {
+        if (l.startsWith('event: ')) evt = l.slice(7);
+        else if (l.startsWith('data: ')) dat = l.slice(6);
+        else if (l === '' && evt && dat) {
+          if (evt === 'log') try { addLogEntry(JSON.parse(dat)); } catch {}
+          evt = ''; dat = '';
         }
       }
     }
   } catch (err) {
-    if (err.name === 'AbortError') {
-      // Clean disconnect
-      return;
-    }
-    console.error('SSE error:', err);
+    if (err.name === 'AbortError') return;
     showError('Connection lost: ' + err.message);
   } finally {
-    if (state.connected) {
-      state.connected = false;
-      state.connecting = false;
-      setStatus('disconnected');
-      connectBtn.textContent = 'Reconnect';
-      connectBtn.disabled = false;
-    }
-
-    // Auto-reconnect after 3 seconds (only on unintentional disconnects)
-    setTimeout(() => {
-      if (!state.connected && state.apiKey && !state.intentionalDisconnect) {
-        connectSSE();
-      }
-    }, 3000);
+    if (state.connected) { state.connected = false; state.connecting = false; setStatus('disconnected'); connectBtn.textContent = 'Reconnect'; connectBtn.disabled = false; }
+    setTimeout(() => { if (!state.connected && state.apiKey && !state.intentionalDisconnect) connectSSE(); }, 3000);
   }
 }
 
 function disconnectSSE() {
   state.intentionalDisconnect = true;
-  if (state.abortController) {
-    state.abortController.abort();
-    state.abortController = null;
-  }
-  state.connected = false;
-  state.connecting = false;
-  setStatus('disconnected');
-  connectBtn.textContent = 'Connect';
-  connectBtn.disabled = false;
+  if (state.abortController) { state.abortController.abort(); state.abortController = null; }
+  state.connected = false; state.connecting = false;
+  setStatus('disconnected'); connectBtn.textContent = 'Connect'; connectBtn.disabled = false;
 }
 
 // ── Clear ──────────────────────────────────────────────────
 clearBtn.addEventListener('click', () => {
   if (state.logs.length === 0) return;
-  if (confirm('Clear all displayed logs? This does not delete them from the server.')) {
-    state.logs = [];
-    renderLogs();
-  }
+  if (confirm('Clear displayed logs?')) { state.logs = []; renderLogs(); }
 });
 
 // ── Connect/Disconnect ─────────────────────────────────────
 connectBtn.addEventListener('click', () => {
-  if (state.connected || state.connecting) {
-    disconnectSSE();
-  } else {
-    state.apiKey = apiKeyInput.value.trim();
-    connectSSE();
-  }
+  if (state.connected || state.connecting) disconnectSSE();
+  else { state.apiKey = apiKeyInput.value.trim(); connectSSE(); }
 });
-
 apiKeyInput.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter' && !state.connected && !state.connecting) {
-    state.apiKey = apiKeyInput.value.trim();
-    connectSSE();
-  }
+  if (e.key === 'Enter' && !state.connected && !state.connecting) { state.apiKey = apiKeyInput.value.trim(); connectSSE(); }
 });
 
 // ── Init ───────────────────────────────────────────────────
-// Check if API key was previously saved in sessionStorage
-const savedKey = sessionStorage.getItem('log_receiver_api_key');
-if (savedKey) {
-  apiKeyInput.value = savedKey;
-  state.apiKey = savedKey;
-  connectSSE();
-}  // Save API key to sessionStorage on successful connect
-  const origConnect = connectSSE;
-  connectSSE = async function() {
-    delete state.intentionalDisconnect;
-    sessionStorage.setItem('log_receiver_api_key', state.apiKey);
-    await origConnect();
-  };
-
-// Expose toggleJson globally for onclick handler
+const savedKey = sessionStorage.getItem('hookview_api_key');
+if (savedKey) { apiKeyInput.value = savedKey; state.apiKey = savedKey; connectSSE(); }
+const origConnect = connectSSE;
+connectSSE = async function() {
+  delete state.intentionalDisconnect;
+  sessionStorage.setItem('hookview_api_key', state.apiKey);
+  await origConnect();
+};
 window.toggleJson = toggleJson;
 </script>
 </body>
