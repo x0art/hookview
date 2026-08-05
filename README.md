@@ -25,7 +25,7 @@ Open **http://localhost:8000** in your browser and enter your API key.
 | `GET` | `/stream` | Bearer | SSE real-time log stream |
 | `GET` | `/logs` | Bearer | Paginated historical logs |
 | `DELETE` | `/logs/{id}` | Bearer | Delete a single log entry |
-| `GET` | `/docs` | — | Interactive Swagger UI |
+| `GET` | `/x0art/docs` | — | Interactive Swagger UI |
 
 ## Usage
 

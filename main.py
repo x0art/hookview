@@ -117,7 +117,7 @@ async def lifespan(app: FastAPI):
     print(f"  Webhook: POST /webhook")
     print(f"  Stream:  GET /stream")
     print(f"  Logs:    GET /logs")
-    print(f"  Docs:    GET /docs")
+    print(f"  Docs:    GET /x0art/docs")
     print(f"  Server:  http://0.0.0.0:8000")
     print(border)
     print()
@@ -236,6 +236,7 @@ Missing or invalid keys are rejected with `403`.
         "name": "HookView",
         "url": "https://github.com/x0art/hookview",
     },
+    docs_url="/x0art/docs",
 )
 
 app.add_middleware(
