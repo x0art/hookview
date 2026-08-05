@@ -157,6 +157,7 @@
 
   .error-msg { font-size: 12px; color: var(--red); display: none; }
   .error-msg.visible { display: block; }
+  .error-msg.success { color: var(--green); }
 
   /* ── Toolbar ────────────────────────────────────────────── */
   .toolbar {
@@ -514,6 +515,9 @@
     </div>
     <div class="toolbar-right">
       <button class="btn btn-secondary btn-sm" id="testerBtn">✏️ Send</button>
+      <button class="btn btn-secondary btn-sm" id="exportBtn">📤 Export</button>
+      <button class="btn btn-secondary btn-sm" id="importBtn">📥 Import</button>
+      <input type="file" id="importFileInput" accept=".json" style="display:none">
       <div class="toggle" id="autoScrollToggle" title="Auto-scroll to new entries">
         <div class="toggle-track active" id="scrollTrack"><div class="toggle-knob"></div></div>
         <span class="toggle-label">Scroll</span>
@@ -663,6 +667,9 @@ const presets = $('presets');
 const loadMoreBtn = $('loadMoreBtn');
 const loadMoreRow = $('loadMoreRow');
 const loadMoreInfo = $('loadMoreInfo');
+const exportBtn = $('exportBtn');
+const importBtn = $('importBtn');
+const importFileInput = $('importFileInput');
 
 // ── Utility ───────────────────────────────────────────────
 function setStatus(conn) {
@@ -671,9 +678,14 @@ function setStatus(conn) {
   statusLabel.textContent = labels[conn] || conn;
 }
 function showError(msg) {
+  errorMsg.className = 'error-msg visible';
   errorMsg.textContent = msg;
-  errorMsg.classList.add('visible');
   setTimeout(() => errorMsg.classList.remove('visible'), 5000);
+}
+function showSuccess(msg) {
+  errorMsg.className = 'error-msg visible success';
+  errorMsg.textContent = msg;
+  setTimeout(() => errorMsg.classList.remove('visible', 'success'), 5000);
 }
 function formatTimestamp(ts) {
   try {
@@ -1035,6 +1047,9 @@ async function connectSSE() {
       const { done, value } = await reader.read();
       if (done) break;
       buf += decoder.decode(value, { stream: true });
+      // Normalize CRLF: sse-starlette emits \r\n line separators on Windows,
+      // which would otherwise leave '\r' on event/data lines and break matching.
+      buf = buf.replace(/\r\n/g, '\n');
       const lines = buf.split('\n');
       buf = lines.pop() || '';
       for (const l of lines) {
@@ -1061,6 +1076,72 @@ function disconnectSSE() {
   state.connected = false; state.connecting = false;
   setStatus('disconnected'); connectBtn.textContent = 'Connect'; connectBtn.disabled = false;
 }
+
+// ── Export ──────────────────────────────────────────────────
+exportBtn.addEventListener('click', async () => {
+  const apiKey = state.apiKey || apiKeyInput.value.trim();
+  if (!apiKey) { showError('Connect with an API key first'); return; }
+  try {
+    exportBtn.textContent = 'Exporting...';
+    exportBtn.disabled = true;
+    const res = await fetch('/logs/export', {
+      headers: { 'Authorization': `Bearer ${apiKey}` },
+    });
+    if (!res.ok) throw new Error(`Export failed (${res.status})`);
+    const data = await res.json();
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `hookview-export-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch (err) {
+    showError(err.message);
+  } finally {
+    exportBtn.textContent = '📤 Export';
+    exportBtn.disabled = false;
+  }
+});
+
+// ── Import ──────────────────────────────────────────────────
+importBtn.addEventListener('click', () => {
+  const apiKey = state.apiKey || apiKeyInput.value.trim();
+  if (!apiKey) { showError('Connect with an API key first'); return; }
+  importFileInput.click();
+});
+
+importFileInput.addEventListener('change', async () => {
+  const file = importFileInput.files[0];
+  if (!file) return;
+  const apiKey = state.apiKey || apiKeyInput.value.trim();
+  if (!apiKey) { showError('Connect with an API key first'); return; }
+
+  importBtn.textContent = 'Importing...';
+  importBtn.disabled = true;
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await fetch('/logs/import', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${apiKey}` },
+      body: formData,
+    });
+    const result = await res.json();
+    if (!res.ok) throw new Error(result.detail || `Import failed (${res.status})`);
+    showSuccess(`✅ Imported ${result.imported} log entries`);
+    // Reload history to show imported entries
+    state.loadedOffset = 0;
+    state.totalCount = 0;
+    await loadHistory();
+  } catch (err) {
+    showError('Import error: ' + err.message);
+  } finally {
+    importBtn.textContent = '📥 Import';
+    importBtn.disabled = false;
+    importFileInput.value = '';
+  }
+});
 
 // ── Clear ──────────────────────────────────────────────────
 clearBtn.addEventListener('click', () => {

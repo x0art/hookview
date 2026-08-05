@@ -61,6 +61,26 @@ class ErrorResponse(BaseModel):
     detail: str = Field(..., description="Human-readable error message")
 
 
+class ExportData(BaseModel):
+    """JSON export response containing all log entries."""
+
+    export_date: str = Field(
+        ..., description="UTC timestamp when the export was generated"
+    )
+    total: int = Field(..., description="Number of log entries in this export")
+    items: list[LogEntryResponse] = Field(
+        ..., description="Array of all log entries, newest first"
+    )
+
+
+class ImportResult(BaseModel):
+    """Result of a log import operation."""
+
+    imported: int = Field(
+        ..., description="Number of log entries successfully imported"
+    )
+
+
 # ── Helper ──────────────────────────────────────────────────────────────────
 
 
@@ -132,7 +152,7 @@ and streamed back as-is.
 The webhook endpoint accepts **both** `application/json` and `multipart/form-data`.
 Use multipart when you need to upload a file alongside the payload.
     """,
-    version="1.0.0",
+    version="1.1.0",
     lifespan=lifespan,
     contact={
         "name": "HookView",
@@ -217,26 +237,32 @@ async def init_db():
 
 # ── SSE Event Bus ──────────────────────────────────────────────────────────
 
-_broadcast_queue: asyncio.Queue = asyncio.Queue()
+# Each connected SSE client gets its own queue; broadcast() fans out to all
+# of them so every client receives every event. (A single shared queue would
+# hand each event to exactly one connection and silently starve the others.)
+_clients: set[asyncio.Queue] = set()
 
 
 async def broadcast(log_entry: dict):
     """Push a log entry to all connected SSE clients."""
-    await _broadcast_queue.put(log_entry)
+    for queue in list(_clients):
+        queue.put_nowait(log_entry)
 
 
 async def event_generator():
     """Generator for SSE streaming."""
+    queue: asyncio.Queue = asyncio.Queue()
+    _clients.add(queue)
     try:
         # Send initial heartbeat to confirm connection
         yield {"event": "connected", "data": "SSE connection established"}
 
         while True:
             # Wait for new log entry (blocks until one is available)
-            log_entry = await _broadcast_queue.get()
+            log_entry = await queue.get()
             yield {"event": "log", "data": json.dumps(log_entry)}
-    except asyncio.CancelledError:
-        pass
+    finally:
+        _clients.discard(queue)
 
 
 # ── Endpoints ──────────────────────────────────────────────────────────────
@@ -496,6 +522,214 @@ async def get_logs(
     ]
 
     return {"items": items, "total": total}
+
+
+@app.get(
+    "/logs/export",
+    dependencies=[Depends(verify_auth)],
+    response_model=ExportData,
+    summary="Export all log entries as JSON",
+    description="""
+Returns all log entries ordered by most recent first, wrapped in an export
+object with metadata. Designed for backup and transfer purposes.
+
+The response can be saved to a file and later re-imported via `POST /logs/import`.
+    """,
+    tags=["Logs"],
+    responses={
+        200: {"description": "JSON export of all log entries"},
+        403: {
+            "model": ErrorResponse,
+            "description": "Invalid or missing Bearer API key",
+        },
+    },
+)
+async def export_logs():
+    db = await aiosqlite.connect(str(DB_PATH))
+    db.row_factory = aiosqlite.Row
+
+    cursor = await db.execute(
+        "SELECT id, timestamp, ip_address, payload, filename FROM logs ORDER BY id DESC"
+    )
+    rows = await cursor.fetchall()
+    await db.close()
+
+    items = [
+        {
+            "id": row["id"],
+            "timestamp": row["timestamp"],
+            "ip_address": row["ip_address"],
+            "payload": _parse_stored_payload(row["payload"]),
+            "filename": row["filename"],
+        }
+        for row in rows
+    ]
+
+    return ExportData(
+        export_date=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        total=len(items),
+        items=items,
+    )
+
+
+@app.post(
+    "/logs/import",
+    dependencies=[Depends(verify_auth)],
+    response_model=ImportResult,
+    summary="Import log entries from JSON",
+    description="""
+Accepts a JSON array of log entries and imports them into the database.
+Each entry must have `timestamp`, `ip_address`, and `payload` fields.
+The `id` field is optional and will be auto-generated.
+
+The request body can be:
+- A **JSON array** sent as `application/json`
+- A **file upload** (`file` field in multipart/form-data) containing a JSON array
+
+Imported entries are broadcast via SSE to all connected clients.
+    """,
+    tags=["Logs"],
+    responses={
+        200: {"description": "Import completed with count of imported entries"},
+        400: {
+            "model": ErrorResponse,
+            "description": "Invalid JSON or missing required fields",
+        },
+        403: {
+            "model": ErrorResponse,
+            "description": "Invalid or missing Bearer API key",
+        },
+    },
+    openapi_extra={
+        "requestBody": {
+            "content": {
+                "application/json": {
+                    "schema": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "timestamp": {
+                                    "type": "string",
+                                    "description": "ISO 8601 UTC timestamp",
+                                    "example": "2026-07-27T12:34:56Z",
+                                },
+                                "ip_address": {
+                                    "type": "string",
+                                    "description": "Originating IP address",
+                                    "example": "192.168.1.1",
+                                },
+                                "payload": {
+                                    "description": "Any valid JSON value",
+                                    "example": {"event": "deploy", "status": "success"},
+                                },
+                                "filename": {
+                                    "type": "string",
+                                    "description": "Optional uploaded filename",
+                                    "nullable": True,
+                                },
+                            },
+                            "required": ["timestamp", "ip_address", "payload"],
+                        },
+                    },
+                },
+                "multipart/form-data": {
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "file": {
+                                "type": "string",
+                                "format": "binary",
+                                "description": "JSON file containing an array of log entries",
+                            },
+                        },
+                    },
+                },
+            },
+        },
+    },
+)
+async def import_logs(request: Request):
+    content_type = request.headers.get("content-type", "").lower()
+    entries = None
+
+    if "multipart/form-data" in content_type or "application/x-www-form-urlencoded" in content_type:
+        form = await request.form()
+        file: StarletteUploadFile | None = None
+        for key in form:
+            value = form.get(key)
+            if isinstance(value, StarletteUploadFile):
+                file = value
+                break
+        if file:
+            content = await file.read()
+            try:
+                decoded = content.decode("utf-8")
+                entries = json.loads(decoded)
+            except (UnicodeDecodeError, json.JSONDecodeError) as e:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid JSON in uploaded file: {e}",
+                )
+        else:
+            raise HTTPException(
+                status_code=400,
+                detail="No file found in multipart upload. Attach a .json file as the 'file' field.",
+            )
+    else:
+        try:
+            body = await request.body()
+            entries = json.loads(body) if body else None
+        except json.JSONDecodeError:
+            raise HTTPException(status_code=400, detail="Invalid JSON body")
+
+    if not isinstance(entries, list):
+        raise HTTPException(
+            status_code=400,
+            detail="Request body must be a JSON array of log entries",
+        )
+
+    if not entries:
+        return ImportResult(imported=0)
+
+    db = await aiosqlite.connect(str(DB_PATH))
+    now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    imported_count = 0
+
+    for entry in entries:
+        if not isinstance(entry, dict):
+            continue
+        timestamp = entry.get("timestamp", now)
+        ip_address = entry.get("ip_address")
+        payload_raw = entry.get("payload")
+        filename = entry.get("filename")
+
+        if not ip_address or payload_raw is None:
+            continue
+
+        stored_payload = json.dumps(payload_raw, ensure_ascii=False)
+
+        cursor = await db.execute(
+            "INSERT INTO logs (timestamp, ip_address, payload, filename) VALUES (?, ?, ?, ?)",
+            (timestamp, str(ip_address), stored_payload, filename),
+        )
+        await db.commit()
+        log_id = cursor.lastrowid
+        imported_count += 1
+
+        # Broadcast each imported entry via SSE
+        display_payload = _parse_stored_payload(stored_payload)
+        log_entry = {
+            "id": log_id,
+            "timestamp": timestamp,
+            "ip_address": str(ip_address),
+            "payload": display_payload,
+            "filename": filename,
+        }
+        await broadcast(log_entry)
+
+    await db.close()
+    return ImportResult(imported=imported_count)
 
 
 # ── Frontend ───────────────────────────────────────────────────────────────
