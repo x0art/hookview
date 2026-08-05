@@ -363,7 +363,7 @@
   .col-ip { width: 130px; }
   .col-message { width: auto; }
   .col-file { width: 100px; }
-  .col-actions { width: 44px; text-align: center; }
+  .col-actions { width: 84px; text-align: center; }
 
   .log-id { color: var(--text-muted); font-family: var(--font-mono); font-size: 12px; }
   .log-ts { font-family: var(--font-mono); font-size: 12px; color: var(--text-secondary); white-space: nowrap; }
@@ -422,20 +422,49 @@
   .json-full .json-boolean { color: var(--purple); }
   .json-full .json-null { color: var(--text-muted); font-style: italic; }
   .json-full .json-bracket { color: var(--text-secondary); }
+  .json-full-bar {
+    display: flex; justify-content: flex-end;
+    margin-bottom: 4px;
+    position: sticky; top: 0;
+    background: rgba(13, 19, 38, 0.92);
+    z-index: 1;
+  }
+  .json-copy {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 3px 8px;
+    background: rgba(34,211,238,0.08);
+    border: 1px solid rgba(34,211,238,0.25);
+    border-radius: 4px;
+    color: var(--accent);
+    font-size: 11px; font-weight: 500;
+    font-family: var(--font-sans);
+    cursor: pointer;
+    transition: all 0.15s;
+    user-select: none;
+  }
+  .json-copy:hover { background: rgba(34,211,238,0.18); }
+  .json-copy:active { transform: scale(0.96); }
+  .json-copy svg { width: 11px; height: 11px; fill: currentColor; }
+  .json-copy.copied { background: rgba(52,211,153,0.12); border-color: rgba(52,211,153,0.3); color: var(--green); }
 
   .log-file { font-size: 12px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .log-file a { color: var(--accent-dim); text-decoration: none; }
   .log-file a:hover { text-decoration: underline; }
 
-  .row-delete {
+  .row-action {
     width: 24px; height: 24px;
     display: inline-flex; align-items: center; justify-content: center;
     background: transparent; border: none; border-radius: 4px;
-    color: var(--text-muted); font-size: 12px; cursor: pointer;
+    color: var(--text-muted); cursor: pointer;
     opacity: 0.5; transition: all 0.15s;
     font-family: var(--font-sans);
+    vertical-align: middle;
   }
-  .row-delete:hover { opacity: 1; color: var(--red); background: rgba(248,113,113,0.12); }
+  .row-action svg { width: 13px; height: 13px; fill: currentColor; }
+  .row-action:hover { opacity: 1; }
+  .row-copy:hover { color: var(--accent); background: rgba(34,211,238,0.12); }
+  .row-copy.copied { color: var(--green); background: rgba(52,211,153,0.12); opacity: 1; }
+  .row-delete:hover { color: var(--red); background: rgba(248,113,113,0.12); }
   .row-delete:disabled { opacity: 0.3; cursor: wait; }
 
   /* ── New row animation ──────────────────────────────────── */
@@ -735,9 +764,14 @@ function getPayloadHTML(msg) {
       ? `[${msg.length} items]`
       : `{${Object.keys(msg).length} keys}`;
     const jsonStr = syntaxHighlight(JSON.stringify(msg, null, 2));
-    return `<span class="msg msg-object" onclick="toggleJson(this)" data-json='${escapeHtml(JSON.stringify(msg))}'>
+    return `<span class="msg msg-object" onclick="toggleJson(this)" data-json='${encodeURIComponent(JSON.stringify(msg))}'>
       <span class="json-preview">${preview}</span>
-      <span class="json-full" style="display:none">${jsonStr}</span>
+      <span class="json-full" style="display:none">
+        <span class="json-full-bar">
+          <button class="json-copy" onclick="event.stopPropagation(); copyJsonFull(this)" title="Copy JSON" aria-label="Copy JSON">${ICON_COPY}<span>Copy</span></button>
+        </span>
+        ${jsonStr}
+      </span>
     </span>`;
   }
   return `<span class="msg">${escapeHtml(String(msg))}</span>`;
@@ -766,6 +800,50 @@ function toggleJson(el) {
   full.style.display = expanded ? 'none' : 'block';
   preview.style.display = expanded ? 'inline' : 'none';
   el.classList.toggle('expanded', !expanded);
+}
+
+// ── Copy to clipboard ─────────────────────────────────────
+const ICON_COPY = '<svg viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>';
+const ICON_CHECK = '<svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>';
+
+async function copyText(text) {
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch { /* fall through to legacy fallback */ }
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.setAttribute('readonly', '');
+  ta.style.position = 'fixed';
+  ta.style.opacity = '0';
+  document.body.appendChild(ta);
+  ta.select();
+  ta.setSelectionRange(0, ta.value.length);
+  try { return document.execCommand('copy'); }
+  catch { return false; }
+  finally { document.body.removeChild(ta); }
+}
+
+async function handleCopy(btn, text, doneHtml) {
+  const ok = await copyText(text);
+  if (!ok) { showError('Copy failed — clipboard unavailable'); return; }
+  if (btn._copyTimer) clearTimeout(btn._copyTimer);
+  const prev = btn.innerHTML;
+  btn.classList.add('copied');
+  btn.innerHTML = doneHtml || ICON_CHECK;
+  btn._copyTimer = setTimeout(() => {
+    btn.innerHTML = prev;
+    btn.classList.remove('copied');
+    btn._copyTimer = null;
+  }, 1500);
+}
+
+function copyJsonFull(btn) {
+  const msgEl = btn.closest('.msg');
+  if (!msgEl || !msgEl.dataset.json) return;
+  handleCopy(btn, decodeURIComponent(msgEl.dataset.json), ICON_CHECK + '<span>Copied</span>');
 }
 
 // ── Tester Drawer ─────────────────────────────────────────
@@ -891,6 +969,25 @@ searchInput.addEventListener('input', () => {
   renderLogs();
 });
 
+// ── Row builders ───────────────────────────────────────────
+function buildPayloadCell(log) {
+  const tdMsg = document.createElement('td');
+  tdMsg.innerHTML = getTypeBadge(log.payload) + getPayloadHTML(log.payload);
+  return tdMsg;
+}
+function buildFileCell(log) {
+  const tdFile = document.createElement('td'); tdFile.className = 'log-file';
+  tdFile.innerHTML = log.filename ? `<a href="/uploads/${log.filename}" target="_blank">📎 ${escapeHtml(log.filename)}</a>` : '—';
+  return tdFile;
+}
+function buildActionsCell(log) {
+  const tdAct = document.createElement('td'); tdAct.className = 'log-actions';
+  tdAct.innerHTML =
+    `<button class="row-action row-copy" data-id="${log.id}" title="Copy payload #${log.id}" aria-label="Copy payload #${log.id}">${ICON_COPY}</button>` +
+    `<button class="row-action row-delete" data-id="${log.id}" title="Delete log #${log.id}" aria-label="Delete log #${log.id}">🗑</button>`;
+  return tdAct;
+}
+
 // ── Render ─────────────────────────────────────────────────
 function renderLogs() {
   const query = state.searchQuery;
@@ -918,11 +1015,9 @@ function renderLogs() {
     const tdId = document.createElement('td'); tdId.className = 'log-id'; tdId.textContent = log.id;
     const tdTs = document.createElement('td'); tdTs.className = 'log-ts'; tdTs.textContent = formatTimestamp(log.timestamp);
     const tdIp = document.createElement('td'); tdIp.className = 'log-ip'; tdIp.textContent = log.ip_address;
-    const tdMsg = document.createElement('td'); tdMsg.innerHTML = getTypeBadge(log.payload) + getPayloadHTML(log.payload);
-    const tdFile = document.createElement('td'); tdFile.className = 'log-file';
-    tdFile.innerHTML = log.filename ? `<a href="/uploads/${log.filename}" target="_blank">📎 ${escapeHtml(log.filename)}</a>` : '—';
-    const tdAct = document.createElement('td'); tdAct.className = 'log-actions';
-    tdAct.innerHTML = `<button class="row-delete" data-id="${log.id}" title="Delete log #${log.id}">🗑</button>`;
+    const tdMsg = buildPayloadCell(log);
+    const tdFile = buildFileCell(log);
+    const tdAct = buildActionsCell(log);
 
     tr.appendChild(tdId); tr.appendChild(tdTs); tr.appendChild(tdIp); tr.appendChild(tdMsg); tr.appendChild(tdFile); tr.appendChild(tdAct);
     fragment.appendChild(tr);
@@ -960,11 +1055,9 @@ function addLogEntry(log) {
     const tdId = document.createElement('td'); tdId.className = 'log-id'; tdId.textContent = log.id;
     const tdTs = document.createElement('td'); tdTs.className = 'log-ts'; tdTs.textContent = formatTimestamp(log.timestamp);
     const tdIp = document.createElement('td'); tdIp.className = 'log-ip'; tdIp.textContent = log.ip_address;
-    const tdMsg = document.createElement('td'); tdMsg.innerHTML = getTypeBadge(log.payload) + getPayloadHTML(log.payload);
-    const tdFile = document.createElement('td'); tdFile.className = 'log-file';
-    tdFile.innerHTML = log.filename ? `<a href="/uploads/${log.filename}" target="_blank">📎 ${escapeHtml(log.filename)}</a>` : '—';
-    const tdAct = document.createElement('td'); tdAct.className = 'log-actions';
-    tdAct.innerHTML = `<button class="row-delete" data-id="${log.id}" title="Delete log #${log.id}">🗑</button>`;
+    const tdMsg = buildPayloadCell(log);
+    const tdFile = buildFileCell(log);
+    const tdAct = buildActionsCell(log);
 
     tr.appendChild(tdId); tr.appendChild(tdTs); tr.appendChild(tdIp); tr.appendChild(tdMsg); tr.appendChild(tdFile); tr.appendChild(tdAct);
     emptyState.style.display = 'none'; logTable.style.display = '';
@@ -1180,6 +1273,13 @@ importFileInput.addEventListener('change', async () => {
 
 // ── Delete log (row action button) ─────────────────────────
 logBody.addEventListener('click', async (e) => {
+  const copyBtn = e.target.closest('.row-copy');
+  if (copyBtn) {
+    const id = Number(copyBtn.dataset.id);
+    const log = state.logs.find(l => l.id === id);
+    if (log) handleCopy(copyBtn, JSON.stringify(log.payload, null, 2));
+    return;
+  }
   const btn = e.target.closest('.row-delete');
   if (!btn) return;
   const id = Number(btn.dataset.id);
@@ -1231,6 +1331,7 @@ connectSSE = async function() {
   await origConnect();
 };
 window.toggleJson = toggleJson;
+window.copyJsonFull = copyJsonFull;
 </script>
 </body>
 </html>
