@@ -230,7 +230,7 @@ Missing or invalid keys are rejected with `403`.
 - The dashboard (`/`) has search, auto-scroll, export/import, and a built-in
   tester for sending test webhooks without leaving the browser.
     """,
-    version="1.2.0",
+    version="1.3.0",
     lifespan=lifespan,
     contact={
         "name": "HookView",
