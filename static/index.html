@@ -363,6 +363,7 @@
   .col-ip { width: 130px; }
   .col-message { width: auto; }
   .col-file { width: 100px; }
+  .col-actions { width: 44px; text-align: center; }
 
   .log-id { color: var(--text-muted); font-family: var(--font-mono); font-size: 12px; }
   .log-ts { font-family: var(--font-mono); font-size: 12px; color: var(--text-secondary); white-space: nowrap; }
@@ -425,6 +426,17 @@
   .log-file { font-size: 12px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .log-file a { color: var(--accent-dim); text-decoration: none; }
   .log-file a:hover { text-decoration: underline; }
+
+  .row-delete {
+    width: 24px; height: 24px;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: transparent; border: none; border-radius: 4px;
+    color: var(--text-muted); font-size: 12px; cursor: pointer;
+    opacity: 0.5; transition: all 0.15s;
+    font-family: var(--font-sans);
+  }
+  .row-delete:hover { opacity: 1; color: var(--red); background: rgba(248,113,113,0.12); }
+  .row-delete:disabled { opacity: 0.3; cursor: wait; }
 
   /* ── New row animation ──────────────────────────────────── */
   @keyframes slideIn {
@@ -551,12 +563,13 @@
               <th class="col-ip">IP</th>
               <th class="col-message">Payload</th>
               <th class="col-file">File</th>
+              <th class="col-actions"></th>
             </tr>
           </thead>
           <tbody id="logBody"></tbody>
           <tfoot id="loadMoreRow" style="display:none">
             <tr>
-              <td colspan="5" style="text-align:center;padding:14px;border-bottom:none;">
+              <td colspan="6" style="text-align:center;padding:14px;border-bottom:none;">
                 <button class="btn btn-secondary btn-sm" id="loadMoreBtn">Load 50 more</button>
                 <span style="font-size:12px;color:var(--text-muted);margin-left:8px;" id="loadMoreInfo"></span>
               </td>
@@ -629,6 +642,7 @@ const state = {
   testerOpen: false,
   loadedOffset: 0,
   totalCount: 0,
+  deletedIds: new Set(),
   loadMoreLoading: false,
   pageSize: 50,
 };
@@ -907,8 +921,10 @@ function renderLogs() {
     const tdMsg = document.createElement('td'); tdMsg.innerHTML = getTypeBadge(log.payload) + getPayloadHTML(log.payload);
     const tdFile = document.createElement('td'); tdFile.className = 'log-file';
     tdFile.innerHTML = log.filename ? `<a href="/uploads/${log.filename}" target="_blank">📎 ${escapeHtml(log.filename)}</a>` : '—';
+    const tdAct = document.createElement('td'); tdAct.className = 'log-actions';
+    tdAct.innerHTML = `<button class="row-delete" data-id="${log.id}" title="Delete log #${log.id}">🗑</button>`;
 
-    tr.appendChild(tdId); tr.appendChild(tdTs); tr.appendChild(tdIp); tr.appendChild(tdMsg); tr.appendChild(tdFile);
+    tr.appendChild(tdId); tr.appendChild(tdTs); tr.appendChild(tdIp); tr.appendChild(tdMsg); tr.appendChild(tdFile); tr.appendChild(tdAct);
     fragment.appendChild(tr);
   }
 
@@ -947,8 +963,10 @@ function addLogEntry(log) {
     const tdMsg = document.createElement('td'); tdMsg.innerHTML = getTypeBadge(log.payload) + getPayloadHTML(log.payload);
     const tdFile = document.createElement('td'); tdFile.className = 'log-file';
     tdFile.innerHTML = log.filename ? `<a href="/uploads/${log.filename}" target="_blank">📎 ${escapeHtml(log.filename)}</a>` : '—';
+    const tdAct = document.createElement('td'); tdAct.className = 'log-actions';
+    tdAct.innerHTML = `<button class="row-delete" data-id="${log.id}" title="Delete log #${log.id}">🗑</button>`;
 
-    tr.appendChild(tdId); tr.appendChild(tdTs); tr.appendChild(tdIp); tr.appendChild(tdMsg); tr.appendChild(tdFile);
+    tr.appendChild(tdId); tr.appendChild(tdTs); tr.appendChild(tdIp); tr.appendChild(tdMsg); tr.appendChild(tdFile); tr.appendChild(tdAct);
     emptyState.style.display = 'none'; logTable.style.display = '';
     logBody.prepend(tr);
     logCount.textContent = state.logs.length;
@@ -957,6 +975,21 @@ function addLogEntry(log) {
   } else {
     renderLogs();
   }
+}
+
+// ── Remove a single log entry (delete action or SSE) ──────
+function removeLogEntry(id) {
+  // Idempotent: each deleted id is counted only once, even when the same
+  // delete arrives via both the local action and the SSE broadcast.
+  if (state.deletedIds.has(id)) return;
+  state.deletedIds.add(id);
+  const idx = state.logs.findIndex(l => l.id === id);
+  if (idx !== -1) {
+    state.logs.splice(idx, 1);
+    state.loadedOffset = Math.max(0, state.loadedOffset - 1);
+  }
+  state.totalCount = Math.max(0, state.totalCount - 1);
+  renderLogs();
 }
 
 // ── Load history ───────────────────────────────────────────
@@ -971,6 +1004,7 @@ async function loadHistory(offset = 0) {
     if (offset === 0) {
       state.logs = data.items || [];
       state.loadedOffset = data.items.length;
+      state.deletedIds = new Set(); // server total is authoritative again
     } else {
       // Append older entries to the end (state.logs is newest-first)
       state.logs.push(...(data.items || []));
@@ -1057,6 +1091,7 @@ async function connectSSE() {
         else if (l.startsWith('data: ')) dat = l.slice(6);
         else if (l === '' && evt && dat) {
           if (evt === 'log') try { addLogEntry(JSON.parse(dat)); } catch {}
+          else if (evt === 'delete') try { removeLogEntry(JSON.parse(dat).id); } catch {}
           evt = ''; dat = '';
         }
       }
@@ -1143,10 +1178,38 @@ importFileInput.addEventListener('change', async () => {
   }
 });
 
+// ── Delete log (row action button) ─────────────────────────
+logBody.addEventListener('click', async (e) => {
+  const btn = e.target.closest('.row-delete');
+  if (!btn) return;
+  const id = Number(btn.dataset.id);
+  const apiKey = state.apiKey || apiKeyInput.value.trim();
+  if (!apiKey) { showError('Connect with an API key first'); return; }
+  btn.disabled = true; btn.textContent = '…';
+  try {
+    const res = await fetch(`/logs/${id}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${apiKey}` },
+    });
+    if (res.ok || res.status === 404) {
+      // 404 = already deleted elsewhere (another tab / API) — still a success
+      showSuccess(`🗑 Deleted log #${id}`);
+      removeLogEntry(id);
+    } else {
+      let detail = `HTTP ${res.status}`;
+      try { detail = (await res.json()).detail || detail; } catch {}
+      throw new Error(detail);
+    }
+  } catch (err) {
+    showError('Delete failed: ' + err.message);
+    btn.disabled = false; btn.textContent = '🗑';
+  }
+});
+
 // ── Clear ──────────────────────────────────────────────────
 clearBtn.addEventListener('click', () => {
   if (state.logs.length === 0) return;
-  if (confirm('Clear displayed logs?')) { state.logs = []; state.loadedOffset = 0; state.totalCount = 0; renderLogs(); }
+  if (confirm('Clear displayed logs?')) { state.logs = []; state.loadedOffset = 0; state.totalCount = 0; state.deletedIds = new Set(); renderLogs(); }
 });
 
 // ── Connect/Disconnect ─────────────────────────────────────

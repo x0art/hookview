@@ -81,6 +81,13 @@ class ImportResult(BaseModel):
     )
 
 
+class DeleteResult(BaseModel):
+    """Result of a log deletion operation."""
+
+    deleted: bool = Field(..., description="Whether the log entry was deleted")
+    id: int = Field(..., description="ID of the deleted log entry")
+
+
 # ── Helper ──────────────────────────────────────────────────────────────────
 
 
@@ -152,7 +159,7 @@ and streamed back as-is.
 The webhook endpoint accepts **both** `application/json` and `multipart/form-data`.
 Use multipart when you need to upload a file alongside the payload.
     """,
-    version="1.1.0",
+    version="1.2.0",
     lifespan=lifespan,
     contact={
         "name": "HookView",
@@ -243,10 +250,10 @@ async def init_db():
 _clients: set[asyncio.Queue] = set()
 
 
-async def broadcast(log_entry: dict):
-    """Push a log entry to all connected SSE clients."""
+async def broadcast(event: str, data: dict):
+    """Push an SSE event to all connected clients."""
     for queue in list(_clients):
-        queue.put_nowait(log_entry)
+        queue.put_nowait({"event": event, "data": data})
 
 
 async def event_generator():
@@ -258,9 +265,9 @@ async def event_generator():
         yield {"event": "connected", "data": "SSE connection established"}
 
         while True:
-            # Wait for new log entry (blocks until one is available)
-            log_entry = await queue.get()
-            yield {"event": "log", "data": json.dumps(log_entry)}
+            # Wait for the next event, then push it to this client
+            item = await queue.get()
+            yield {"event": item["event"], "data": json.dumps(item["data"])}
     finally:
         _clients.discard(queue)
 
@@ -418,7 +425,7 @@ async def receive_webhook(request: Request):
     }
 
     # Broadcast to SSE clients
-    await broadcast(log_entry)
+    await broadcast("log", log_entry)
 
     return JSONResponse(content=log_entry, status_code=201)
 
@@ -726,10 +733,63 @@ async def import_logs(request: Request):
             "payload": display_payload,
             "filename": filename,
         }
-        await broadcast(log_entry)
+        await broadcast("log", log_entry)
 
     await db.close()
     return ImportResult(imported=imported_count)
+
+
+@app.delete(
+    "/logs/{log_id}",
+    dependencies=[Depends(verify_auth)],
+    response_model=DeleteResult,
+    summary="Delete a single log entry",
+    description="""
+Deletes the log entry with the given ID from the database. If the entry has
+an associated uploaded file, the file is removed from disk as well.
+
+Deletion is broadcast via SSE so all connected clients remove the row.
+    """,
+    tags=["Logs"],
+    responses={
+        200: {"description": "Log entry deleted"},
+        403: {
+            "model": ErrorResponse,
+            "description": "Invalid or missing Bearer API key",
+        },
+        404: {
+            "model": ErrorResponse,
+            "description": "Log entry not found",
+        },
+    },
+)
+async def delete_log(log_id: int):
+    db = await aiosqlite.connect(str(DB_PATH))
+    db.row_factory = aiosqlite.Row
+
+    cursor = await db.execute("SELECT filename FROM logs WHERE id = ?", (log_id,))
+    row = await cursor.fetchone()
+    if row is None:
+        await db.close()
+        raise HTTPException(status_code=404, detail=f"Log entry {log_id} not found")
+
+    await db.execute("DELETE FROM logs WHERE id = ?", (log_id,))
+    await db.commit()
+    await db.close()
+
+    # Remove the associated uploaded file, if any (best effort — the log row
+    # is already deleted, so a locked file must not fail the request)
+    filename = row["filename"]
+    if filename:
+        file_path = UPLOAD_DIR / filename
+        try:
+            if file_path.exists():
+                file_path.unlink()
+        except OSError:
+            pass
+
+    await broadcast("delete", {"id": log_id})
+    return DeleteResult(deleted=True, id=log_id)
 
 
 # ── Frontend ───────────────────────────────────────────────────────────────
