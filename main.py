@@ -127,37 +127,108 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="HookView",
-    description="""
-A real-time webhook log receiver with SSE streaming, SQLite persistence,
-file upload support, and a live browser UI.
+    description="""HookView is a real-time webhook log receiver with SSE streaming, SQLite
+persistence, file upload support, and a live browser dashboard. It accepts
+**any** JSON payload — no schema or required fields.
 
-## Authentication
+## 🚀 Step-by-step tutorial
 
-All endpoints require a Bearer token set via the `API_KEY` environment variable.
-Include it in requests as:
+### Step 1 — Install and start the server
+
+```bash
+git clone https://github.com/x0art/hookview.git
+cd hookview
+uv sync
+API_KEY=your-secret-key uv run python main.py
+```
+
+You should see the startup banner, and the server will listen on
+**http://localhost:8000**. On Windows, set the key first with
+`set API_KEY=your-secret-key` (cmd) or `$env:API_KEY = "your-secret-key"` (PowerShell).
+
+### Step 2 — Open the live dashboard
+
+Open **http://localhost:8000** in your browser, type `your-secret-key` into the
+**Key** field, and click **Connect**. The status turns green and every incoming
+webhook appears in the table in real time.
+
+### Step 3 — Send your first webhook
+
+```bash
+curl -X POST http://localhost:8000/webhook \\
+  -H "Authorization: Bearer your-secret-key" \\
+  -H "Content-Type: application/json" \\
+  -d '{"event": "deploy", "status": "success"}'
+```
+
+You get a `201 Created` response with the stored entry, and the dashboard
+updates instantly.
+
+### Step 4 — Try other payload types
+
+HookView accepts any valid JSON value — object, string, array, number,
+boolean, or `null`:
+
+| Payload type | curl `-d` value |
+|--------------|-----------------|
+| Object       | `{"message": "hello"}` |
+| String       | `"just a string"` |
+| Array        | `[1, 2, 3, "mixed"]` |
+| Number       | `42` |
+| Boolean      | `true` |
+| Null         | `null` |
+
+### Step 5 — Send a webhook with a file
+
+Use `multipart/form-data` to attach a file (up to 1 GB) alongside form fields:
+
+```bash
+curl -X POST http://localhost:8000/webhook \\
+  -H "Authorization: Bearer your-secret-key" \\
+  -F 'message=Deploy artifact' \\
+  -F 'file=@./build.zip'
+```
+
+Form fields are bundled into the payload object, and the file is saved to
+`uploads/` and linked from the dashboard.
+
+### Step 6 — Watch the stream live
+
+```bash
+curl -N http://localhost:8000/stream \\
+  -H "Authorization: Bearer your-secret-key"
+```
+
+You receive `event: connected` immediately, then an `event: log` push for
+every new webhook.
+
+## 🔑 Authentication
+
+All endpoints require the Bearer API key set via the `API_KEY` environment
+variable:
+
 ```
 Authorization: Bearer <your-api-key>
 ```
 
-## Payload
+Missing or invalid keys are rejected with `403`.
 
-Unlike traditional webhook receivers that expect a specific schema,
-HookView accepts **any JSON body** you send. The entire payload is stored
-and streamed back as-is.
+## 📚 Endpoint reference
 
-| Example                                     |
-|---------------------------------------------|
-| `{"event": "deploy", "status": "ok"}`       |
-| `{"message": "Hello", "severity": "info"}`  |
-| `{"temperature": 23.5, "unit": "celsius"}`  |
-| `"just a string"`                            |
-| `[1, 2, 3, "mixed"]`                         |
-| `42`                                         |
+| Method | Path | Purpose |
+|--------|------|---------|
+| `POST` | `/webhook` | Send a webhook (JSON or multipart) |
+| `GET` | `/stream` | Real-time SSE stream of new logs |
+| `GET` | `/logs` | Paginated historical logs |
+| `GET` | `/logs/export` | Download all logs as JSON |
+| `POST` | `/logs/import` | Import logs from a JSON backup |
+| `DELETE` | `/logs/{id}` | Delete a single log entry |
 
-## Content Types
+## 💡 Tips
 
-The webhook endpoint accepts **both** `application/json` and `multipart/form-data`.
-Use multipart when you need to upload a file alongside the payload.
+- Every endpoint below can be tried right here with **Try it out**.
+- The dashboard (`/`) has search, auto-scroll, export/import, and a built-in
+  tester for sending test webhooks without leaving the browser.
     """,
     version="1.2.0",
     lifespan=lifespan,
@@ -280,30 +351,48 @@ async def event_generator():
     dependencies=[Depends(verify_auth)],
     response_model=LogEntryResponse,
     summary="Receive a webhook event",
-    description="""
-Accepts **any** JSON payload — there are no required fields.
-
-The entire request body is stored as the log entry's payload.
+    description="""Send a webhook event. The **entire** JSON body is stored as the log entry's
+payload — there are no required fields and no schema to match.
 
 ## JSON request
 
-```json
-{"event": "deploy", "status": "success"}
+```bash
+curl -X POST http://localhost:8000/webhook \\
+  -H "Authorization: Bearer your-secret-key" \\
+  -H "Content-Type: application/json" \\
+  -d '{"event": "deploy", "status": "success"}'
 ```
 
-Any valid JSON body is accepted:
-- **object**: `{"key": "value"}`
-- **string**: `"simple message"`
-- **array**: `[1, 2, 3]`
-- **number**: `42`
-- **boolean**: `true`
-- **null**: `null`
+Any valid JSON value is accepted: object, string, array, number, boolean,
+or `null`.
 
-## Multipart request
+## Multipart request (with file)
 
-Send as `multipart/form-data` with any fields:
+```bash
+curl -X POST http://localhost:8000/webhook \\
+  -H "Authorization: Bearer your-secret-key" \\
+  -F 'message=Deploy artifact' \\
+  -F 'file=@./build.zip'
+```
+
 - **Any form fields** are bundled into a JSON payload object
-- **file** (optional) — an uploaded file (max 1 GB)
+- **`file`** (optional) — an uploaded file, max 1 GB, saved to `uploads/`
+
+## Response
+
+`201 Created` with the stored log entry:
+
+```json
+{
+  "id": 42,
+  "timestamp": "2026-08-05T12:34:56Z",
+  "ip_address": "203.0.113.1",
+  "payload": {"event": "deploy", "status": "success"},
+  "filename": null
+}
+```
+
+The entry is also broadcast over SSE, so open dashboards update instantly.
     """,
     tags=["Webhook"],
     responses={
@@ -434,23 +523,26 @@ async def receive_webhook(request: Request):
     "/stream",
     dependencies=[Depends(verify_auth)],
     summary="Stream log entries in real-time (SSE)",
-    description="""
-Opens a **Server-Sent Events** (SSE) connection that pushes new log entries
-as they arrive from the webhook endpoint.
+    description="""Opens a **Server-Sent Events** (SSE) connection that pushes new log entries
+the moment they arrive.
 
-### Event types
-
-| Event       | Description                              |
-|-------------|------------------------------------------|
-| `connected` | Initial heartbeat confirming connection  |
-| `log`       | A new log entry (data is JSON-encoded)   |
-
-### Example (curl)
+## Watch live from the terminal
 
 ```bash
 curl -N http://localhost:8000/stream \\
-  -H "Authorization: Bearer <your-api-key>"
+  -H "Authorization: Bearer your-secret-key"
 ```
+
+## Events
+
+| Event | Data | Description |
+|-------|------|-------------|
+| `connected` | string | Heartbeat confirming the connection |
+| `log` | JSON | A new log entry |
+| `delete` | JSON | An entry was deleted (`{"id": 42}`) |
+
+The connection stays open indefinitely. The dashboard (`/`) uses this
+endpoint to update the table in real time.
     """,
     tags=["Stream"],
     responses={
@@ -472,14 +564,21 @@ async def stream_logs():
     dependencies=[Depends(verify_auth)],
     response_model=LogListResponse,
     summary="Retrieve historical log entries",
-    description="""
-Returns a paginated list of log entries ordered by most recent first.
+    description="""Returns a paginated list of historical log entries, **newest first**.
 
-Use `limit` and `offset` for cursor-style pagination:
-```
-GET /logs?limit=10&offset=0   # first 10 entries
-GET /logs?limit=10&offset=10  # next 10 entries
-```
+## Pagination
+
+Use `limit` and `offset` for cursor-style paging:
+
+| Call | Returns |
+|------|---------|
+| `/logs?limit=50&offset=0` | First 50 entries |
+| `/logs?limit=50&offset=50` | Next 50 entries |
+
+- `limit` — 1 to 1000 (default 50)
+- `offset` — number of entries to skip (default 0)
+- The response includes `total`, the overall count, so you know when to stop
+  paging
     """,
     tags=["Logs"],
     responses={
@@ -536,11 +635,18 @@ async def get_logs(
     dependencies=[Depends(verify_auth)],
     response_model=ExportData,
     summary="Export all log entries as JSON",
-    description="""
-Returns all log entries ordered by most recent first, wrapped in an export
-object with metadata. Designed for backup and transfer purposes.
+    description="""Downloads **all** log entries as a JSON document, newest first, wrapped with
+export metadata. Use it to back up your logs.
 
-The response can be saved to a file and later re-imported via `POST /logs/import`.
+## Example
+
+```bash
+curl http://localhost:8000/logs/export \\
+  -H "Authorization: Bearer your-secret-key" \\
+  -o backup.json
+```
+
+The saved file can be restored later via `POST /logs/import`.
     """,
     tags=["Logs"],
     responses={
@@ -584,16 +690,38 @@ async def export_logs():
     dependencies=[Depends(verify_auth)],
     response_model=ImportResult,
     summary="Import log entries from JSON",
-    description="""
-Accepts a JSON array of log entries and imports them into the database.
-Each entry must have `timestamp`, `ip_address`, and `payload` fields.
-The `id` field is optional and will be auto-generated.
+    description="""Imports log entries from a JSON array. Use it to restore a backup created
+with `GET /logs/export`, or to seed data.
 
-The request body can be:
-- A **JSON array** sent as `application/json`
-- A **file upload** (`file` field in multipart/form-data) containing a JSON array
+## Requirements
 
-Imported entries are broadcast via SSE to all connected clients.
+- The request body must be a **JSON array** of log entries
+- Each entry needs `ip_address` and `payload` (`timestamp` defaults
+  to the import time; `id` and `filename` are optional)
+
+## JSON body example
+
+```json
+[
+  {
+    "timestamp": "2026-08-05T12:00:00Z",
+    "ip_address": "203.0.113.1",
+    "payload": {"event": "restored", "status": "ok"}
+  }
+]
+```
+
+## Upload a backup file
+
+Send the same array as a file upload using the `file` field:
+
+```bash
+curl -X POST http://localhost:8000/logs/import \\
+  -H "Authorization: Bearer your-secret-key" \\
+  -F 'file=@backup.json'
+```
+
+Imported entries are broadcast over SSE so connected dashboards update live.
     """,
     tags=["Logs"],
     responses={
@@ -744,11 +872,18 @@ async def import_logs(request: Request):
     dependencies=[Depends(verify_auth)],
     response_model=DeleteResult,
     summary="Delete a single log entry",
-    description="""
-Deletes the log entry with the given ID from the database. If the entry has
-an associated uploaded file, the file is removed from disk as well.
+    description="""Deletes the log entry with the given ID. If the entry has an associated
+uploaded file, the file is removed from `uploads/` as well. The deletion is
+broadcast over SSE so all open dashboards remove the row instantly.
 
-Deletion is broadcast via SSE so all connected clients remove the row.
+## Example
+
+```bash
+curl -X DELETE http://localhost:8000/logs/42 \\
+  -H "Authorization: Bearer your-secret-key"
+```
+
+Returns `200` with `{"deleted": true, "id": 42}`.
     """,
     tags=["Logs"],
     responses={
