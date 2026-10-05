@@ -17,7 +17,7 @@
     --border-light: #2a3a6a;
     --text-primary: #e2e8f0;
     --text-secondary: #94a3b8;
-    --text-muted: #64748b;
+    --text-muted: #8b9caf;
     --accent: #22d3ee;
     --accent-dim: #0891b2;
     --green: #34d399;
@@ -30,6 +30,7 @@
     --status-connecting: #fbbf24;
     --radius: 10px;
     --radius-sm: 6px;
+    --radius-xs: 4px;
     --shadow: 0 4px 24px rgba(0,0,0,0.3);
     --font-mono: 'SF Mono', 'Fira Code', 'Cascadia Code', 'JetBrains Mono', 'Consolas', monospace;
     --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
@@ -49,7 +50,7 @@
 
   ::-webkit-scrollbar { width: 6px; height: 6px; }
   ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: var(--radius-xs); }
   ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
 
   /* ── Layout ──────────────────────────────────────────────── */
@@ -70,7 +71,7 @@
   .logo {
     width: 28px; height: 28px;
     background: linear-gradient(135deg, var(--accent), var(--purple));
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
     display: flex; align-items: center; justify-content: center;
     font-size: 13px; color: #000;
     font-weight: 700;
@@ -80,7 +81,7 @@
   .title-docs {
     font-size: 11px; color: var(--text-muted);
     background: var(--bg-card); padding: 2px 8px;
-    border-radius: 4px; border: 1px solid var(--border);
+    border-radius: var(--radius-xs); border: 1px solid var(--border);
     text-decoration: none;
   }
   .title-docs:hover { border-color: var(--accent-dim); color: var(--accent); }
@@ -133,7 +134,7 @@
     font-size: 13px;
     outline: none;
   }
-  .auth-input:focus { border-color: var(--accent-dim); }
+  .auth-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(34,211,238,0.15); }
   .auth-input::placeholder { color: var(--text-muted); font-family: var(--font-sans); }
 
   .btn {
@@ -146,14 +147,21 @@
     white-space: nowrap;
   }
   .btn:active { transform: scale(0.97); }
-  .btn-primary { background: linear-gradient(135deg, var(--accent-dim), var(--accent)); color: #000; }
+  .btn:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--bg-secondary), 0 0 0 4px var(--accent);
+  }
+  .btn-primary { background: linear-gradient(135deg, var(--accent-dim), var(--accent)); color: #000; cursor: pointer; }
   .btn-primary:hover { box-shadow: 0 0 16px rgba(34,211,238,0.25); }
-  .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: none; }
-  .btn-secondary { background: var(--bg-card); color: var(--text-secondary); border: 1px solid var(--border); }
+  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; box-shadow: none; transform: none; }
+  .btn-secondary { background: var(--bg-card); color: var(--text-secondary); border: 1px solid var(--border); cursor: pointer; }
   .btn-secondary:hover { background: var(--bg-hover); border-color: var(--border-light); color: var(--text-primary); }
-  .btn-danger { background: rgba(248,113,113,0.15); color: var(--red); border: 1px solid rgba(248,113,113,0.25); }
+  .btn-secondary:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-danger { background: rgba(248,113,113,0.15); color: var(--red); border: 1px solid rgba(248,113,113,0.25); cursor: pointer; }
   .btn-danger:hover { background: rgba(248,113,113,0.25); }
   .btn-sm { padding: 5px 12px; font-size: 12px; }
+  .btn-ico { width: 13px; height: 13px; fill: currentColor; margin-right: 6px; vertical-align: -2px; }
+  .btn-ico:only-child { margin-right: 0; }
 
   .error-msg { font-size: 12px; color: var(--red); display: none; }
   .error-msg.visible { display: block; }
@@ -183,7 +191,7 @@
     font-size: 13px;
     outline: none;
   }
-  .search-input:focus { border-color: var(--accent-dim); }
+  .search-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(34,211,238,0.15); }
   .search-input::placeholder { color: var(--text-muted); }
   .toolbar-right { display: flex; align-items: center; gap: 6px; margin-left: auto; }
 
@@ -194,9 +202,14 @@
     border: 1px solid var(--border);
     border-radius: 9px;
     position: relative;
-    transition: all 0.2s;
+    transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
     cursor: pointer;
   }
+  .toggle-track:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--bg-secondary), 0 0 0 4px var(--accent);
+  }
+  .toggle:hover .toggle-track { border-color: var(--border-light); }
   .toggle-track.active { background: var(--accent-dim); border-color: var(--accent); }
   .toggle-knob {
     width: 12px; height: 12px;
@@ -219,6 +232,11 @@
     color: var(--text-muted);
   }
   .btn-icon:hover { background: var(--bg-card); color: var(--text-secondary); border-color: var(--border-light); }
+  .btn-icon:focus-visible {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(34,211,238,0.15);
+  }
   .btn-icon svg { width: 14px; height: 14px; fill: currentColor; }
 
   /* ── Tester Drawer ──────────────────────────────────────── */
@@ -256,6 +274,10 @@
     font-size: 18px;
   }
   .tester-close:hover { background: var(--bg-card); color: var(--text-primary); }
+  .tester-close:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--bg-secondary), 0 0 0 4px var(--accent);
+  }
 
   .tester-body { flex: 1; overflow-y: auto; padding: 16px 20px; }
 
@@ -269,7 +291,7 @@
   .presets { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
   .preset-chip {
     padding: 4px 10px;
-    border-radius: 4px;
+    border-radius: var(--radius-xs);
     border: 1px solid var(--border);
     background: var(--bg-card);
     color: var(--text-secondary);
@@ -296,7 +318,7 @@
     outline: none;
     tab-size: 2;
   }
-  .json-editor:focus { border-color: var(--accent-dim); }
+  .json-editor:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(34,211,238,0.15); }
   .json-editor::placeholder { color: var(--text-muted); font-family: var(--font-sans); font-size: 13px; }
 
   /* File upload */
@@ -375,7 +397,7 @@
     display: inline-block;
     font-size: 9px; font-weight: 600; text-transform: uppercase;
     padding: 1px 6px;
-    border-radius: 3px;
+    border-radius: var(--radius-xs);
     margin-right: 6px;
     vertical-align: middle;
     letter-spacing: 0.03em;
@@ -397,20 +419,40 @@
   .msg-object, .msg-array {
     color: var(--amber);
     font-size: 12px;
-    cursor: pointer;
     position: relative;
   }
-  .msg-object:hover, .msg-array:hover { filter: brightness(1.2); }
-  .msg-object.expanded, .msg-array.expanded { cursor: default; }
-  .msg-object.expanded:hover, .msg-array.expanded:hover { filter: none; }
-
-  .json-preview { display: inline; white-space: pre-wrap; }
-  .msg-compact { display: inline; white-space: pre-wrap; font-family: var(--font-mono); word-break: break-word; }
+  /* Only the header row is the expand/collapse target; the JSON body below it
+     keeps default cursor and stays fully selectable. */
+  .payload-head {
+    display: inline-flex; align-items: center; gap: 4px;
+    cursor: pointer;
+    border-radius: var(--radius-sm);
+    padding: 1px 4px;
+    margin-left: -4px;
+    transition: background 0.12s, box-shadow 0.12s;
+    user-select: none;
+    vertical-align: middle;
+  }
+  .payload-head:hover { background: rgba(251,191,36,0.12); }
+  .payload-head:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--bg-secondary), 0 0 0 4px var(--accent);
+  }
+  .payload-toggle {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 13px; height: 13px;
+    color: var(--text-muted);
+    transition: transform 0.15s, color 0.15s;
+    flex-shrink: 0;
+  }
+  .payload-toggle svg { width: 13px; height: 13px; fill: currentColor; display: block; }
+  .payload-head:hover .payload-toggle { color: var(--amber); }
+  .msg-object.expanded .payload-toggle { transform: rotate(90deg); color: var(--amber); }
   .json-full {
     display: block;
     background: rgba(0,0,0,0.3);
     border: 1px solid var(--border);
-    border-radius: 5px;
+    border-radius: var(--radius-xs);
     padding: 8px 12px;
     margin-top: 4px;
     font-size: 12px;
@@ -436,7 +478,7 @@
     padding: 3px 8px;
     background: rgba(34,211,238,0.08);
     border: 1px solid rgba(34,211,238,0.25);
-    border-radius: 4px;
+    border-radius: var(--radius-xs);
     color: var(--accent);
     font-size: 11px; font-weight: 500;
     font-family: var(--font-sans);
@@ -445,6 +487,10 @@
     user-select: none;
   }
   .json-copy:hover { background: rgba(34,211,238,0.18); }
+  .json-copy:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--bg-secondary), 0 0 0 3px var(--accent);
+  }
   .json-copy:active { transform: scale(0.96); }
   .json-copy svg { width: 11px; height: 11px; fill: currentColor; }
   .json-copy.copied { background: rgba(52,211,153,0.12); border-color: rgba(52,211,153,0.3); color: var(--green); }
@@ -456,14 +502,20 @@
   .row-action {
     width: 24px; height: 24px;
     display: inline-flex; align-items: center; justify-content: center;
-    background: transparent; border: none; border-radius: 4px;
+    background: transparent; border: none; border-radius: var(--radius-xs);
     color: var(--text-muted); cursor: pointer;
     opacity: 0.5; transition: all 0.15s;
     font-family: var(--font-sans);
     vertical-align: middle;
   }
   .row-action svg { width: 13px; height: 13px; fill: currentColor; }
+  .row-action:focus-visible {
+    outline: none;
+    opacity: 1;
+    box-shadow: 0 0 0 2px var(--bg-secondary), 0 0 0 3px var(--accent);
+  }
   .row-action:hover { opacity: 1; }
+  .row-action:active { transform: scale(0.9); }
   .row-copy:hover, .row-copy-row:hover { color: var(--accent); background: rgba(34,211,238,0.12); }
   .row-copy.copied, .row-copy-row.copied { color: var(--green); background: rgba(52,211,153,0.12); opacity: 1; }
   .row-delete:hover { color: var(--red); background: rgba(248,113,113,0.12); }
@@ -487,7 +539,7 @@
   .empty-state p { font-size: 13px; color: var(--text-muted); max-width: 420px; line-height: 1.6; }
   .empty-state code {
     font-family: var(--font-mono); font-size: 12px;
-    background: var(--bg-card); padding: 2px 8px; border-radius: 4px;
+    background: var(--bg-card); padding: 2px 8px; border-radius: var(--radius-xs);
     border: 1px solid var(--border);
   }
 
@@ -515,6 +567,13 @@
     .col-file { display: none; }
     .log-table th, .log-table td { padding: 6px 8px; }
     .title-docs { display: none; }
+  }
+  /* Below ~600px the search box takes its own line and the controls wrap as a
+     right-aligned group, so no toolbar control is clipped off the edge. */
+  @media (max-width: 600px) {
+    .toolbar { flex-wrap: wrap; row-gap: 8px; }
+    .search-box { flex-basis: 100%; max-width: 100%; }
+    .toolbar-right { flex: 1 1 100%; justify-content: flex-end; flex-wrap: wrap; row-gap: 6px; }
   }
   @media (max-width: 480px) {
     .col-ip { display: none; }
@@ -557,20 +616,26 @@
       <input type="text" class="search-input" id="searchInput" placeholder="Filter payloads..." spellcheck="false">
     </div>
     <div class="toolbar-right">
-      <button class="btn btn-secondary btn-sm" id="testerBtn">✏️ Send</button>
-      <button class="btn btn-secondary btn-sm" id="exportBtn">📤 Export</button>
-      <button class="btn btn-secondary btn-sm" id="importBtn">📥 Import</button>
+      <button class="btn btn-secondary btn-sm" id="testerBtn" title="Open the webhook tester">
+        <svg class="btn-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.01 21 23 12 2.01 3 2 10l15 2-15 2z"/></svg>Send
+      </button>
+      <button class="btn btn-secondary btn-sm" id="exportBtn" title="Export logs as JSON">
+        <svg class="btn-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>Export
+      </button>
+      <button class="btn btn-secondary btn-sm" id="importBtn" title="Import logs from a JSON file">
+        <svg class="btn-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 16h6v-6h4l-7-7-7 7h4zM5 18h14v2H5z"/></svg>Import
+      </button>
       <input type="file" id="importFileInput" accept=".json" style="display:none">
-      <div class="toggle" id="autoScrollToggle" title="Auto-scroll to new entries">
-        <div class="toggle-track active" id="scrollTrack"><div class="toggle-knob"></div></div>
+      <button type="button" class="toggle" id="autoScrollToggle" role="switch" aria-checked="true" title="Auto-scroll to new entries">
+        <span class="toggle-track active" id="scrollTrack" aria-hidden="true"><span class="toggle-knob"></span></span>
         <span class="toggle-label">Scroll</span>
-      </div>
-      <div class="toggle" id="prettyToggle" title="Expand all JSON payloads into pretty multi-line view (off = compact one-line)">
-        <div class="toggle-track" id="prettyTrack"><div class="toggle-knob"></div></div>
+      </button>
+      <button type="button" class="toggle" id="prettyToggle" role="switch" aria-checked="false" title="Expand all JSON payloads into pretty multi-line view (off = compact one-line)">
+        <span class="toggle-track" id="prettyTrack" aria-hidden="true"><span class="toggle-knob"></span></span>
         <span class="toggle-label">Pretty</span>
-      </div>
-      <button class="btn-icon" id="clearBtn" title="Clear displayed logs">
-        <svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+      </button>
+      <button class="btn-icon" id="clearBtn" title="Clear displayed logs" aria-label="Clear displayed logs">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
       </button>
     </div>
   </div>
@@ -584,10 +649,10 @@
           <h3>Waiting for logs</h3>
           <p>Enter your API key above and click <strong>Connect</strong> to start receiving logs in real-time.</p>
           <p style="margin-top:8px">
-            <button class="btn btn-secondary btn-sm" id="emptyStateSendBtn" style="margin-top:4px">✏️ Send a test webhook</button>
+            <button class="btn btn-secondary btn-sm" id="emptyStateSendBtn" style="margin-top:4px"><svg class="btn-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.01 21 23 12 2.01 3 2 10l15 2-15 2z"/></svg>Send a test webhook</button>
           </p>
           <p style="margin-top:12px;font-size:12px;color:var(--text-muted)">
-            HookView accepts <strong>any</strong> JSON payload — objects, strings, arrays, numbers, booleans, or null.
+            HookView accepts <strong>any</strong> JSON payload: objects, strings, arrays, numbers, booleans, or null.
           </p>
         </div>
         <table class="log-table" id="logTable" style="display:none">
@@ -653,7 +718,7 @@
       </div>
     </div>
     <div class="tester-actions">
-      <button class="btn btn-primary" id="sendTestBtn">🚀 Send</button>
+      <button class="btn btn-primary" id="sendTestBtn"><svg class="btn-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.01 21 23 12 2.01 3 2 10l15 2-15 2z"/></svg>Send</button>
       <button class="btn btn-secondary" id="clearTestBtn">Clear</button>
     </div>
     <div class="tester-response" id="testerResponse">
@@ -768,14 +833,23 @@ function getPayloadHTML(msg) {
   if (t === 'number') return `<span class="msg msg-number">${msg}</span>`;
   if (t === 'boolean') return `<span class="msg msg-boolean">${msg}</span>`;
   if (Array.isArray(msg) || t === 'object') {
+    const pretty = state.prettyPayload;
+    const jsonStr = syntaxHighlight(JSON.stringify(msg, null, 2));
+    const compactPreview = escapeHtml(JSON.stringify(msg));
     const preview = msg.length !== undefined
       ? `[${msg.length} items]`
       : `{${Object.keys(msg).length} keys}`;
-    const jsonStr = syntaxHighlight(JSON.stringify(msg, null, 2));
-    const compactPreview = escapeHtml(JSON.stringify(msg));
-    const pretty = state.prettyPayload;
-    return `<span class="msg msg-object${pretty ? ' expanded' : ''}" onclick="togglePayloadMode(this)" data-json='${encodeURIComponent(JSON.stringify(msg))}'>
-      <span class="json-preview" style="display:${pretty ? 'none' : 'inline'}">${pretty ? preview : `<span class="msg-compact">${compactPreview}</span>`}</span>
+    const jsonEsc = encodeURIComponent(JSON.stringify(msg));
+    const isCol = Array.isArray(msg);
+    // The expand/collapse click target is ONLY the header row (badge + preview).
+    // The expanded JSON body (.json-full) is not a toggle target, so text stays
+    // selectable and clicking inside it never collapses the row.
+    return `<span class="msg msg-object${pretty ? ' expanded' : ''}" data-json='${jsonEsc}'>
+      <span class="payload-head" role="button" tabindex="0" aria-expanded="${pretty ? 'true' : 'false'}" title="Show full JSON" onclick="togglePayloadMode(this)" onkeydown="payloadHeadKey(event, this)">
+        <span class="payload-toggle" aria-hidden="true">${isCol ? ICON_ARR : ICON_OBJ}</span>
+        <span class="json-preview" style="display:${pretty ? 'none' : 'inline'}">${preview}</span>
+      </span>
+      <span class="msg-compact" style="display:${pretty ? 'none' : 'inline'}">${compactPreview}</span>
       <span class="json-full" style="display:${pretty ? 'block' : 'none'}">
         <span class="json-full-bar">
           <button class="json-copy" onclick="event.stopPropagation(); copyJsonFull(this)" title="Copy JSON" aria-label="Copy JSON">${ICON_COPY}<span>Copy</span></button>
@@ -807,15 +881,39 @@ function toggleJson(el) {
   const full = el.querySelector('.json-full');
   if (!preview || !full) return;
   const expanded = full.style.display !== 'none';
+  const next = !expanded;
   full.style.display = expanded ? 'none' : 'block';
   preview.style.display = expanded ? 'inline' : 'none';
-  el.classList.toggle('expanded', !expanded);
+  const compact = el.querySelector('.msg-compact');
+  if (compact) compact.style.display = expanded ? 'inline' : 'none';
+  const head = el.querySelector('.payload-head');
+  if (head) {
+    head.setAttribute('aria-expanded', String(next));
+    head.title = next ? 'Hide full JSON' : 'Show full JSON';
+  }
+  el.classList.toggle('expanded', next);
+}
+
+// Keyboard parity for the header toggle (it is a focusable role="button").
+function payloadHeadKey(event, el) {
+  if (event.key === 'Enter' || event.key === ' ' || event.key === 'Spacebar') {
+    event.preventDefault();
+    toggleJson(el.closest('.msg'));
+  }
 }
 
 // ── Copy to clipboard ─────────────────────────────────────
 const ICON_COPY = '<svg viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>';
 const ICON_COPY_ROW = '<svg viewBox="0 0 24 24"><path d="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm2 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>';
 const ICON_CHECK = '<svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>';
+
+// Payload expand affordance + type glyphs (hand-inlined, same 24x24 style as ICON_COPY).
+const ICON_OBJ = '<svg viewBox="0 0 24 24"><path d="M4 5h16v2H4zm0 6h16v2H4zm0 6h16v2H4z"/></svg>';
+const ICON_ARR = '<svg viewBox="0 0 24 24"><path d="M14 10.5h-4v3h4v-3zM11 2h2v2h2v2h-2v2h-2V6H9V4h2V2z"/></svg>';
+const ICON_EXPORT = '<svg class="btn-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>';
+const ICON_IMPORT = '<svg class="btn-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 16h6v-6h4l-7-7-7 7h4zM5 18h14v2H5z"/></svg>';
+const ICON_TRASH = '<svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>';
+const ICON_CLIP = '<svg viewBox="0 0 24 24"><path d="M16.5 6v11.5c0 2.21-1.79 4-4 4s-4-1.79-4-4V5c0-1.38 1.12-2.5 2.5-2.5s2.5 1.12 2.5 2.5v10.5c0 .55-.45 1-1 1s-1-.45-1-1V6H10v9.5c0 1.38 1.12 2.5 2.5 2.5s2.5-1.12 2.5-2.5V5c0-2.21-1.79-4-4-4S7 2.79 7 5v12.5c0 3.04 2.46 5.5 5.5 5.5s5.5-2.46 5.5-5.5V6h-1.5z"/></svg>';
 
 async function copyText(text) {
   try {
@@ -839,7 +937,7 @@ async function copyText(text) {
 
 async function handleCopy(btn, text, doneHtml) {
   const ok = await copyText(text);
-  if (!ok) { showError('Copy failed — clipboard unavailable'); return; }
+  if (!ok) { showError('Copy failed - clipboard unavailable'); return; }
   if (btn._copyTimer) clearTimeout(btn._copyTimer);
   const prev = btn.innerHTML;
   btn.classList.add('copied');
@@ -891,7 +989,7 @@ presets.addEventListener('click', (e) => {
 fileUpload.addEventListener('click', () => fileInput.click());
 fileInput.addEventListener('change', () => {
   if (fileInput.files.length > 0) {
-    fileLabel.textContent = '📎 ' + fileInput.files[0].name;
+    fileLabel.innerHTML = ICON_CLIP + ' ' + escapeHtml(fileInput.files[0].name);
     fileUpload.classList.add('has-file');
   } else {
     fileLabel.textContent = 'Click to attach a file, or drag one here';
@@ -933,7 +1031,7 @@ sendTestBtn.addEventListener('click', async () => {
       if (typeof payload !== 'object' || payload === null || Array.isArray(payload)) {
         showError('File upload requires a JSON object payload (e.g., {"key": "value"})');
         sendTestBtn.disabled = false;
-        sendTestBtn.textContent = '🚀 Send';
+        sendTestBtn.innerHTML = '<svg class="btn-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.01 21 23 12 2.01 3 2 10l15 2-15 2z"/></svg>Send';
         return;
       }
       for (const [key, val] of Object.entries(payload)) {
@@ -971,14 +1069,16 @@ sendTestBtn.addEventListener('click', async () => {
     testerResponse.className = 'tester-response visible error';
   } finally {
     sendTestBtn.disabled = false;
-    sendTestBtn.textContent = '🚀 Send';
+    sendTestBtn.innerHTML = '<svg class="btn-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.01 21 23 12 2.01 3 2 10l15 2-15 2z"/></svg>Send';
   }
 });
 
 // ── Auto-scroll ────────────────────────────────────────────
-scrollTrack.addEventListener('click', () => {
+scrollTrack.addEventListener('click', (e) => {
+  e.stopPropagation();
   state.autoScroll = !state.autoScroll;
   scrollTrack.classList.toggle('active', state.autoScroll);
+  document.getElementById('autoScrollToggle').setAttribute('aria-checked', String(state.autoScroll));
   if (state.autoScroll) scrollToBottomOfList();
 });
 scrollToBottom.addEventListener('click', () => scrollToBottomOfList());
@@ -989,21 +1089,31 @@ function shouldAutoScroll() {
 }
 
 // ── Pretty payload toggle ───────────────────────────────────
+// Global mode flips every payload at once. A row the user expanded/collapsed by
+// hand records that intent (cell.dataset.rowExpand) and keeps it across global
+// refreshes; every other row follows the new global mode.
 function refreshPayloadCells() {
   let changed = false;
   for (const log of state.logs) {
     const row = logBody.querySelector(`tr[data-id="${log.id}"]`);
     const cell = row && row.querySelector('.col-message');
     if (cell) {
+      const want = cell.dataset.rowExpand; // '1' | '0' | undefined
       cell.innerHTML = getTypeBadge(log.payload) + getPayloadHTML(log.payload);
+      if (want === '1' || want === '0') {
+        const fresh = cell.querySelector('.msg-object, .msg-array');
+        if (fresh && fresh.classList.contains('expanded') !== (want === '1')) toggleJson(fresh);
+      }
       changed = true;
     }
   }
   return changed;
 }
-prettyTrack.addEventListener('click', () => {
+prettyTrack.addEventListener('click', (e) => {
+  e.stopPropagation();
   state.prettyPayload = !state.prettyPayload;
   prettyTrack.classList.toggle('active', state.prettyPayload);
+  document.getElementById('prettyToggle').setAttribute('aria-checked', String(state.prettyPayload));
   if (!refreshPayloadCells()) renderLogs();
 });
 
@@ -1021,7 +1131,7 @@ function buildPayloadCell(log) {
 }
 function buildFileCell(log) {
   const tdFile = document.createElement('td'); tdFile.className = 'log-file';
-  tdFile.innerHTML = log.filename ? `<a href="/uploads/${log.filename}" target="_blank">📎 ${escapeHtml(log.filename)}</a>` : '—';
+  tdFile.innerHTML = log.filename ? `<a href="/uploads/${encodeURIComponent(log.filename)}" target="_blank" rel="noopener">${ICON_CLIP} ${escapeHtml(log.filename)}</a>` : '-';
   return tdFile;
 }
 function buildActionsCell(log) {
@@ -1029,7 +1139,7 @@ function buildActionsCell(log) {
   tdAct.innerHTML =
     `<button class="row-action row-copy" data-id="${log.id}" title="Copy payload #${log.id}" aria-label="Copy payload #${log.id}">${ICON_COPY}</button>` +
     `<button class="row-action row-copy-row" data-id="${log.id}" title="Copy row #${log.id}" aria-label="Copy row #${log.id}">${ICON_COPY_ROW}</button>` +
-    `<button class="row-action row-delete" data-id="${log.id}" title="Delete log #${log.id}" aria-label="Delete log #${log.id}">🗑</button>`;
+    `<button class="row-action row-delete" data-id="${log.id}" title="Delete log #${log.id}" aria-label="Delete log #${log.id}">${ICON_TRASH}</button>`;
   return tdAct;
 }
 
@@ -1272,7 +1382,7 @@ exportBtn.addEventListener('click', async () => {
   } catch (err) {
     showError(err.message);
   } finally {
-    exportBtn.textContent = '📤 Export';
+    exportBtn.innerHTML = ICON_EXPORT + 'Export';
     exportBtn.disabled = false;
   }
 });
@@ -1302,7 +1412,7 @@ importFileInput.addEventListener('change', async () => {
     });
     const result = await res.json();
     if (!res.ok) throw new Error(result.detail || `Import failed (${res.status})`);
-    showSuccess(`✅ Imported ${result.imported} log entries`);
+    showSuccess(`Imported ${result.imported} log entries`);
     // Reload history to show imported entries
     state.loadedOffset = 0;
     state.totalCount = 0;
@@ -1310,7 +1420,7 @@ importFileInput.addEventListener('change', async () => {
   } catch (err) {
     showError('Import error: ' + err.message);
   } finally {
-    importBtn.textContent = '📥 Import';
+    importBtn.innerHTML = ICON_IMPORT + 'Import';
     importBtn.disabled = false;
     importFileInput.value = '';
   }
@@ -1343,7 +1453,7 @@ logBody.addEventListener('click', async (e) => {
     });
     if (res.ok || res.status === 404) {
       // 404 = already deleted elsewhere (another tab / API) — still a success
-      showSuccess(`🗑 Deleted log #${id}`);
+      showSuccess(`Deleted log #${id}`);
       removeLogEntry(id);
     } else {
       let detail = `HTTP ${res.status}`;
@@ -1352,7 +1462,7 @@ logBody.addEventListener('click', async (e) => {
     }
   } catch (err) {
     showError('Delete failed: ' + err.message);
-    btn.disabled = false; btn.textContent = '🗑';
+    btn.disabled = false; btn.innerHTML = ICON_TRASH;
   }
 });
 
@@ -1383,10 +1493,17 @@ connectSSE = async function() {
 window.toggleJson = toggleJson;
 window.copyJsonFull = copyJsonFull;
 // Per-row expand/collapse: local toggle only, independent of global Pretty mode.
+// `el` is the .payload-head row; the JSON body is deliberately not a click target.
 function togglePayloadMode(el) {
-  window.toggleJson(el);
+  const msg = el.closest('.msg');
+  const cell = msg && msg.closest('.col-message');
+  window.toggleJson(msg);
+  // Remember the user's explicit choice for this row so a later global Pretty
+  // flip does not override it.
+  if (cell && msg) cell.dataset.rowExpand = msg.classList.contains('expanded') ? '1' : '0';
 }
 window.togglePayloadMode = togglePayloadMode;
+window.payloadHeadKey = payloadHeadKey;
 </script>
 </body>
 </html>
