@@ -565,8 +565,8 @@
         <div class="toggle-track active" id="scrollTrack"><div class="toggle-knob"></div></div>
         <span class="toggle-label">Scroll</span>
       </div>
-      <div class="toggle" id="prettyToggle" title="Pre-expand JSON payloads (uncheck for compact one-line)">
-        <div class="toggle-track active" id="prettyTrack"><div class="toggle-knob"></div></div>
+      <div class="toggle" id="prettyToggle" title="Expand all JSON payloads into pretty multi-line view (off = compact one-line)">
+        <div class="toggle-track" id="prettyTrack"><div class="toggle-knob"></div></div>
         <span class="toggle-label">Pretty</span>
       </div>
       <button class="btn-icon" id="clearBtn" title="Clear displayed logs">
@@ -672,7 +672,7 @@ const state = {
   logs: [],
   filteredLogs: [],
   autoScroll: true,
-  prettyPayload: true,
+  prettyPayload: false,
   searchQuery: '',
   abortController: null,
   testerOpen: false,
@@ -774,7 +774,7 @@ function getPayloadHTML(msg) {
     const jsonStr = syntaxHighlight(JSON.stringify(msg, null, 2));
     const compactPreview = escapeHtml(JSON.stringify(msg));
     const pretty = state.prettyPayload;
-    return `<span class="msg msg-object${pretty ? ' expanded' : ''}" onclick="togglePayloadMode(this)" data-pretty="${pretty ? '1' : '0'}" data-json='${encodeURIComponent(JSON.stringify(msg))}'>
+    return `<span class="msg msg-object${pretty ? ' expanded' : ''}" onclick="togglePayloadMode(this)" data-json='${encodeURIComponent(JSON.stringify(msg))}'>
       <span class="json-preview" style="display:${pretty ? 'none' : 'inline'}">${pretty ? preview : `<span class="msg-compact">${compactPreview}</span>`}</span>
       <span class="json-full" style="display:${pretty ? 'block' : 'none'}">
         <span class="json-full-bar">
