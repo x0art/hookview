@@ -405,6 +405,7 @@
   .msg-object.expanded:hover, .msg-array.expanded:hover { filter: none; }
 
   .json-preview { display: inline; white-space: pre-wrap; }
+  .msg-compact { display: inline; white-space: pre-wrap; font-family: var(--font-mono); word-break: break-word; }
   .json-full {
     display: block;
     background: rgba(0,0,0,0.3);
@@ -564,6 +565,10 @@
         <div class="toggle-track active" id="scrollTrack"><div class="toggle-knob"></div></div>
         <span class="toggle-label">Scroll</span>
       </div>
+      <div class="toggle" id="prettyToggle" title="Pre-expand JSON payloads (uncheck for compact one-line)">
+        <div class="toggle-track active" id="prettyTrack"><div class="toggle-knob"></div></div>
+        <span class="toggle-label">Pretty</span>
+      </div>
       <button class="btn-icon" id="clearBtn" title="Clear displayed logs">
         <svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
       </button>
@@ -667,6 +672,7 @@ const state = {
   logs: [],
   filteredLogs: [],
   autoScroll: true,
+  prettyPayload: true,
   searchQuery: '',
   abortController: null,
   testerOpen: false,
@@ -692,6 +698,7 @@ const logCount = $('logCount');
 const visibleCount = $('visibleCount');
 const clearBtn = $('clearBtn');
 const scrollTrack = $('scrollTrack');
+const prettyTrack = $('prettyTrack');
 const logContainer = $('logContainer');
 const scrollToBottom = $('scrollToBottom');
 const testerBtn = $('testerBtn');
@@ -765,9 +772,11 @@ function getPayloadHTML(msg) {
       ? `[${msg.length} items]`
       : `{${Object.keys(msg).length} keys}`;
     const jsonStr = syntaxHighlight(JSON.stringify(msg, null, 2));
-    return `<span class="msg msg-object" onclick="toggleJson(this)" data-json='${encodeURIComponent(JSON.stringify(msg))}'>
-      <span class="json-preview">${preview}</span>
-      <span class="json-full" style="display:none">
+    const compactPreview = escapeHtml(JSON.stringify(msg));
+    const pretty = state.prettyPayload;
+    return `<span class="msg msg-object${pretty ? ' expanded' : ''}" onclick="togglePayloadMode(this)" data-pretty="${pretty ? '1' : '0'}" data-json='${encodeURIComponent(JSON.stringify(msg))}'>
+      <span class="json-preview" style="display:${pretty ? 'none' : 'inline'}">${pretty ? preview : `<span class="msg-compact">${compactPreview}</span>`}</span>
+      <span class="json-full" style="display:${pretty ? 'block' : 'none'}">
         <span class="json-full-bar">
           <button class="json-copy" onclick="event.stopPropagation(); copyJsonFull(this)" title="Copy JSON" aria-label="Copy JSON">${ICON_COPY}<span>Copy</span></button>
         </span>
@@ -979,6 +988,25 @@ function shouldAutoScroll() {
   return (logContainer.scrollHeight - logContainer.scrollTop - logContainer.clientHeight) <= 100;
 }
 
+// ── Pretty payload toggle ───────────────────────────────────
+function refreshPayloadCells() {
+  let changed = false;
+  for (const log of state.logs) {
+    const row = logBody.querySelector(`tr[data-id="${log.id}"]`);
+    const cell = row && row.querySelector('.col-message');
+    if (cell) {
+      cell.innerHTML = getTypeBadge(log.payload) + getPayloadHTML(log.payload);
+      changed = true;
+    }
+  }
+  return changed;
+}
+prettyTrack.addEventListener('click', () => {
+  state.prettyPayload = !state.prettyPayload;
+  prettyTrack.classList.toggle('active', state.prettyPayload);
+  if (!refreshPayloadCells()) renderLogs();
+});
+
 // ── Search / Filter ────────────────────────────────────────
 searchInput.addEventListener('input', () => {
   state.searchQuery = searchInput.value.trim().toLowerCase();
@@ -987,7 +1015,7 @@ searchInput.addEventListener('input', () => {
 
 // ── Row builders ───────────────────────────────────────────
 function buildPayloadCell(log) {
-  const tdMsg = document.createElement('td');
+  const tdMsg = document.createElement('td'); tdMsg.className = 'col-message';
   tdMsg.innerHTML = getTypeBadge(log.payload) + getPayloadHTML(log.payload);
   return tdMsg;
 }
@@ -1354,6 +1382,11 @@ connectSSE = async function() {
 };
 window.toggleJson = toggleJson;
 window.copyJsonFull = copyJsonFull;
+// Per-row expand/collapse: local toggle only, independent of global Pretty mode.
+function togglePayloadMode(el) {
+  window.toggleJson(el);
+}
+window.togglePayloadMode = togglePayloadMode;
 </script>
 </body>
 </html>
