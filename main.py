@@ -10,6 +10,8 @@ from typing import Any, Optional
 import aiosqlite
 from fastapi import FastAPI, Request, Depends, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.staticfiles import StaticFiles
 from starlette.datastructures import UploadFile as StarletteUploadFile
 from fastapi.responses import JSONResponse, HTMLResponse
 from sse_starlette.sse import EventSourceResponse
@@ -246,6 +248,27 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# The diagram island is ~850KB gzipped, so compress text assets in transit.
+app.add_middleware(GZipMiddleware, minimum_size=1024)
+
+# ── Diagram island assets ──────────────────────────────────────────────────
+# The JSON Crack diagram is a prebuilt React bundle (see frontend/). It is
+# committed under static/app/ so the app runs without a Node toolchain; the
+# mount only serves files, it never builds them.
+
+STATIC_APP_DIR = Path(__file__).parent / "static" / "app"
+if STATIC_APP_DIR.is_dir():
+    app.mount("/app", StaticFiles(directory=str(STATIC_APP_DIR)), name="app")
+else:
+    # Not fatal: the rest of the UI works, and the diagram tab reports the
+    # missing bundle rather than the server refusing to start.
+    print(
+        f"WARNING: {STATIC_APP_DIR} not found - the detail modal's Diagram tab "
+        "will be unavailable. Build it with: cd frontend && npm install && npm run build",
+        file=sys.stderr,
+    )
+
 
 # ── Auth ───────────────────────────────────────────────────────────────────
 

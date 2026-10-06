@@ -68,7 +68,36 @@ curl -N http://localhost:8000/stream \
 - **SSE** — real-time streaming via `sse-starlette`
 - **SQLite** — persistent storage with WAL mode
 - **aiosqlite** — async SQLite driver
-- **Vanilla JS** — no build tools needed, single-file frontend
+- **Vanilla JS** — the dashboard is a single `static/index.html`, no build step
+- **JSON Crack** — the detail modal's Diagram tab renders a React island
+  ([jsoncrack-react](https://github.com/AykutSarac/jsoncrack.com)), prebuilt
+  into `static/app/`
+
+### The diagram island
+
+The Diagram tab is the one part that is not hand-written vanilla JS: it mounts
+the real `jsoncrack-react` component, because reproducing that graph layout by
+hand was both slow and visually wrong.
+
+The bundle is **committed** under `static/app/`, so running the app needs no
+Node toolchain:
+
+```bash
+uv sync
+API_KEY=your-secret-key uv run python main.py
+```
+
+You only need Node when you change the island itself:
+
+```bash
+cd frontend
+npm install
+npm run build      # writes ../static/app/
+```
+
+It is loaded lazily — the page costs nothing extra until you open the Diagram
+tab for the first time. Graphs above 1,500 nodes show a fallback instead of
+rendering.
 
 ## License
 

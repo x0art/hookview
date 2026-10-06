@@ -1,0 +1,26 @@
+{
+  "name": "hookview-diagram",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "React island that renders the JSON Crack graph inside the HookView detail modal",
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite build --watch"
+  },
+  "dependencies": {
+    "jsoncrack-react": "1.0.5",
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "18.3.12",
+    "@types/react-dom": "18.3.1",
+    "@vitejs/plugin-react": "4.3.4",
+    "typescript": "5.7.2",
+    "vite": "6.0.5"
+  },
+  "allowScripts": {
+    "esbuild@0.24.0": true
+  }
+}

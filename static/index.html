@@ -693,6 +693,18 @@
   .ksummary { color: var(--text-muted); flex-shrink: 0; }
   .kchildren { display: none; }
   .knode.open > .kchildren { display: block; }
+  /* "Show N more" row for containers wider than one page. */
+  .kmore { padding-left: 2px; }
+  .kmore-btn {
+    appearance: none; -webkit-appearance: none;
+    background: transparent; border: 1px dashed var(--border-light);
+    color: var(--text-muted); cursor: pointer;
+    font-family: var(--font-mono); font-size: 12px;
+    padding: 2px 9px; border-radius: var(--radius-xs);
+    transition: color var(--dur) var(--ease-out), border-color var(--dur) var(--ease-out), background var(--dur) var(--ease-out);
+  }
+  .kmore-btn:hover { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
+  .kmore-btn:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--bg-primary), 0 0 0 3px var(--accent); }
   .kchildren { margin-left: 15px; border-left: 1px solid var(--border); padding-left: 4px; }
   .kcopy {
     width: 22px; height: 22px; flex-shrink: 0;
@@ -710,69 +722,38 @@
   .kcopy.copied { opacity: 1; color: var(--green); }
   .ktree-empty { padding: 40px 20px; text-align: center; color: var(--text-muted); font-size: 13px; }
 
-  /* ── Diagram tab ────────────────────────────────────────── */
+  /* ── Diagram tab (JSON Crack React island) ──────────────── */
+  /* The island brings its own canvas, grid and camera controls, so we only
+     size the mount point and give it the modal's panel background. */
   .diagram-wrap { position: absolute; inset: 0; overflow: hidden; background: var(--panel); }
-  /* Tokenized dot grid — recolors with the theme, no inline colors. */
-  .diagram-wrap::before {
-    content: ""; position: absolute; inset: 0; pointer-events: none;
-    background-image: radial-gradient(circle at 1px 1px, rgb(var(--ink) / 0.07) 1px, transparent 0);
-    background-size: 22px 22px;
-  }
-  .diagram-svg { position: absolute; inset: 0; width: 100%; height: 100%; cursor: grab; display: block; touch-action: none; }
-  .diagram-svg.panning { cursor: grabbing; }
-  .dg-edge { fill: none; stroke: rgb(var(--ink) / 0.16); stroke-width: 1.5; }
-  .dg-node rect {
-    fill: var(--bg-card);
-    stroke: var(--border-light);
-    stroke-width: 1;
-    transition: fill var(--dur) var(--ease-out), stroke var(--dur) var(--ease-out);
-  }
-  .dg-node:hover rect { stroke: var(--accent); }
-  .dg-node { cursor: default; }
-  .dg-node.is-container { cursor: pointer; }
-  .dg-node text { font-family: var(--font-mono); font-size: 12px; fill: var(--text-primary); }
-  .dg-node .dg-key { fill: var(--text-secondary); }
-  .dg-node .dg-value { fill: var(--text-primary); }
-  .dg-node .dg-meta { fill: var(--text-muted); font-size: 10px; }
-  .dg-node.dg-root rect { fill: var(--accent-soft); stroke: var(--accent); }
-  .dg-node.dg-root text { fill: var(--accent); font-weight: 700; }
-  .dg-toggle-dot { fill: var(--bg-primary); stroke: var(--accent); stroke-width: 1.5; }
-  .dg-toggle-sign { stroke: var(--accent); stroke-width: 1.5; stroke-linecap: round; }
+  .diagram-host { position: absolute; inset: 0; }
+  /* jsoncrack-react sizes its canvas from the wrapper's height, so the host
+     must be a real, measurable box — not height:auto. */
+  .diagram-host > div { width: 100%; height: 100%; }
 
-  .diagram-controls {
-    position: absolute; right: 14px; bottom: 14px;
-    display: flex; align-items: center; gap: 4px;
-    padding: 5px;
-    background: var(--glass-strong);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    box-shadow: var(--shadow-soft), var(--inner-hi);
+  .diagram-loading {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    color: var(--text-muted); font-size: 13px;
+    background: var(--panel);
   }
-  .dg-btn {
-    width: 30px; height: 30px;
-    display: inline-flex; align-items: center; justify-content: center;
-    appearance: none; -webkit-appearance: none;
-    background: transparent; border: none; padding: 0;
-    color: var(--text-secondary); cursor: pointer;
-    border-radius: var(--radius-xs);
-    transition: background var(--dur) var(--ease-out), color var(--dur) var(--ease-out);
+  .diagram-loading[hidden] { display: none; }
+  .dg-spinner {
+    width: 15px; height: 15px; border-radius: 50%;
+    border: 2px solid var(--border-light);
+    border-top-color: var(--accent);
+    animation: dg-spin 0.7s linear infinite;
   }
-  .dg-btn:hover { background: rgb(var(--ink) / 0.07); color: var(--text-primary); }
-  .dg-btn:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--bg-primary), 0 0 0 3px var(--accent); }
-  .dg-btn svg { width: 15px; height: 15px; fill: currentColor; }
-  .dg-zoom-label {
-    font-size: 11px; font-family: var(--font-mono); color: var(--text-muted);
-    min-width: 42px; text-align: center; user-select: none;
-    font-variant-numeric: tabular-nums;
+  @keyframes dg-spin { to { transform: rotate(360deg); } }
+
+  /* Node-limit fallback rendered by the island. */
+  .hv-limit {
+    display: flex; flex-direction: column; gap: 6px; align-items: center;
+    justify-content: center; text-align: center;
+    height: 100%; padding: 32px; color: var(--text-muted); font-size: 13px;
+    font-family: var(--font-sans);
   }
-  .dg-hint {
-    position: absolute; left: 14px; bottom: 16px;
-    font-size: 11px; color: var(--text-muted);
-    pointer-events: none; user-select: none;
-  }
-  .diagram-empty { padding: 40px 20px; text-align: center; color: var(--text-muted); font-size: 13px; }
+  .hv-limit strong { color: var(--text-secondary); font-size: 14px; }
 
   @media (max-width: 680px) {
     .modal-overlay { padding: 0; }
@@ -1302,17 +1283,14 @@
         <div class="ktree" id="ktree"></div>
       </div>
       <div class="modal-panel" id="panelDiagram" role="tabpanel" aria-labelledby="tabDiagram" tabindex="0">
+        <!-- JSON Crack (React island) mounts here; it brings its own camera
+             controls and grid, so no markup of ours lives inside. -->
         <div class="diagram-wrap" id="diagramWrap">
-          <svg class="diagram-svg" id="diagramSvg" aria-label="JSON structure diagram" role="img"></svg>
-          <div class="diagram-controls">
-            <button type="button" class="dg-btn" id="dgZoomOut" aria-label="Zoom out" title="Zoom out"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 13H5v-2h14v2z"/></svg></button>
-            <span class="dg-zoom-label" id="dgZoomLabel">100%</span>
-            <button type="button" class="dg-btn" id="dgZoomIn" aria-label="Zoom in" title="Zoom in"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg></button>
-            <button type="button" class="dg-btn" id="dgFit" aria-label="Fit to view" title="Fit to view"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 3h6v6h-2V5h-4V3zM3 3h6v2H5v4H3V3zm0 18v-6h2v4h4v2H3zm18 0h-6v-2h4v-4h2v6z"/></svg></button>
-            <button type="button" class="dg-btn" id="dgExpandAll" aria-label="Expand all nodes" title="Expand all"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5.83 15.17 9l1.41-1.41L12 3 7.41 7.59 8.83 9 12 5.83zm0 12.34L8.83 15l-1.41 1.41L12 21l4.59-4.59L15.17 15 12 18.17z"/></svg></button>
-            <button type="button" class="dg-btn" id="dgCollapseAll" aria-label="Collapse all nodes" title="Collapse all"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.41 18.59 8.83 17 12 20.17 15.17 17l1.41 1.41L12 23l-4.59-4.41zM12 1l4.59 4.59L15.17 7 12 3.83 8.83 7 7.41 5.59 12 1z"/></svg></button>
+          <div class="diagram-host" id="diagramHost"></div>
+          <div class="diagram-loading" id="diagramLoading" hidden>
+            <span class="dg-spinner" aria-hidden="true"></span>
+            <span>Loading diagram…</span>
           </div>
-          <div class="dg-hint" id="dgHint">Drag to pan · scroll to zoom · click a node to collapse</div>
         </div>
       </div>
     </div>
@@ -2086,7 +2064,6 @@ apiKeyInput.addEventListener('keydown', (e) => {
 // raw payload. Payloads are untrusted, so every value is written with
 // textContent — never innerHTML.
 
-const SVGNS = 'http://www.w3.org/2000/svg';
 const BADGE_LABEL = { object: 'obj', array: 'arr', string: 'str', number: 'num', boolean: 'bool', null: 'null' };
 const CONTAINER_KINDS = { object: true, array: true };
 
@@ -2122,11 +2099,30 @@ function buildTree(payload) {
   return root;
 }
 
-// Default expansion: root + its direct children open, deeper nodes collapsed.
+// Default expansion is budgeted, not depth-only. Expanding a fixed depth on a
+// wide payload (an 800-key object) would materialise thousands of rows and make
+// the modal slow to open, so we stop auto-expanding once a row budget is spent.
+const MAX_INITIAL_ROWS = 250;
+// Containers wider than this render one page of children plus a "show more"
+// row, so an 800-key object opens instantly instead of all at once.
+const CHILD_PAGE = 100;
 const DEFAULT_EXPAND_DEPTH = 2;
-function applyDefaultExpansion(n, depth) {
-  n.open = isContainer(n.kind) && n.children.length > 0 && depth < DEFAULT_EXPAND_DEPTH;
-  n.children.forEach(c => applyDefaultExpansion(c, depth + 1));
+
+function applyDefaultExpansion(root) {
+  let budget = MAX_INITIAL_ROWS;
+  (function walk(n, depth) {
+    const kids = (isContainer(n.kind) && n.children.length) ? n.children : [];
+    if (!kids.length) { n.open = false; return; }
+    // Cost is what this node would actually materialise (its page, not all kids).
+    const cost = Math.min(kids.length, CHILD_PAGE) + 1;
+    if (depth === 0 || (depth < DEFAULT_EXPAND_DEPTH && budget >= cost)) {
+      n.open = true;
+      budget -= cost;
+      kids.forEach(c => walk(c, depth + 1));
+    } else {
+      n.open = false;
+    }
+  })(root, 0);
 }
 function countNodes(n) {
   let c = 0;
@@ -2148,10 +2144,35 @@ function renderKeysTree(root) {
   host.textContent = '';
   const frag = document.createDocumentFragment();
 
-  function setOpen(nodeEl, open) {
-    nodeEl.classList.toggle('open', open);
-    const disc = nodeEl.querySelector(':scope > .krow > .kdisclosure');
-    if (disc) disc.setAttribute('aria-expanded', String(open));
+  // Children are built lazily (only when a node is expanded) and in pages, so a
+  // container with hundreds of keys opens instantly instead of materialising
+  // every row at once.
+  function buildChildren(n, depth, kidsEl) {
+    const shown = Number(kidsEl.dataset.shown || 0);
+    const next = Math.min(n.children.length, shown + CHILD_PAGE);
+    const batch = document.createDocumentFragment();
+    for (let i = shown; i < next; i++) batch.appendChild(buildNode(n.children[i], depth + 1));
+    kidsEl.appendChild(batch);
+    kidsEl.dataset.shown = String(next);
+    kidsEl.dataset.built = '1';
+
+    const existing = kidsEl.querySelector(':scope > .kmore');
+    if (existing) existing.remove();
+    const hidden = n.children.length - next;
+    if (hidden > 0) {
+      const moreRow = document.createElement('div');
+      moreRow.className = 'krow kmore';
+      const moreBtn = document.createElement('button');
+      moreBtn.type = 'button';
+      moreBtn.className = 'kmore-btn';
+      moreBtn.textContent = `Show ${Math.min(CHILD_PAGE, hidden)} more · ${hidden} hidden`;
+      moreBtn.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        buildChildren(n, depth, kidsEl);
+      });
+      moreRow.appendChild(moreBtn);
+      kidsEl.appendChild(moreRow);
+    }
   }
 
   function buildNode(n, depth) {
@@ -2174,7 +2195,10 @@ function renderKeysTree(root) {
       disc.addEventListener('click', (ev) => {
         ev.stopPropagation();
         n.open = !n.open;
-        setOpen(wrap, n.open);
+        if (n.open && !kids.dataset.built) buildChildren(n, depth, kids);
+        wrap.classList.toggle('open', n.open);
+        disc.setAttribute('aria-expanded', String(n.open));
+        disc.setAttribute('aria-label', (n.open ? 'Collapse ' : 'Expand ') + (n.path || 'root'));
       });
     } else {
       disc.tabIndex = -1;
@@ -2228,12 +2252,15 @@ function renderKeysTree(root) {
 
     wrap.appendChild(row);
 
+    let kids = null;
     if (hasKids) {
-      const kids = document.createElement('div');
+      kids = document.createElement('div');
       kids.className = 'kchildren';
-      n.children.forEach(c => kids.appendChild(buildNode(c, depth + 1)));
       wrap.appendChild(kids);
-      if (n.open) wrap.classList.add('open');
+      if (n.open) {
+        buildChildren(n, depth, kids);
+        wrap.classList.add('open');
+      }
     }
     return wrap;
   }
@@ -2242,175 +2269,110 @@ function renderKeysTree(root) {
   host.appendChild(frag);
 }
 
-// ── Diagram tab ────────────────────────────────────────────
-// Tidy tree (Reingold–Tilford simplified): leaves take sequential x slots,
-// parents center over their children, depth maps to y. Only expanded nodes are
-// laid out, which is what keeps a large payload cheap to open.
-const DG_NODE_H = 32, DG_H_GAP = 22, DG_V_GAP = 62, DG_MAX_DEPTH = 40;
+// ── Diagram tab: JSON Crack React island ───────────────────
+// The graph is rendered by the real jsoncrack-react component (see
+// frontend/src/main.tsx). Its bundle is ~1.3MB gzipped, so it is loaded
+// lazily — the first time the Diagram tab is opened — and cached thereafter.
+// Until then the modal costs exactly what it did before.
+const ISLAND_SRC = '/app/island.js';
+let islandState = 'idle'; // idle | loading | ready | failed
+let islandPayload = null; // the payload currently handed to the island
 
-let _measureCtx = null;
-function measureCtx() {
-  if (!_measureCtx) {
-    _measureCtx = document.createElement('canvas').getContext('2d');
-    const mono = getComputedStyle(document.documentElement).getPropertyValue('--font-mono') || 'monospace';
-    _measureCtx.font = `12px ${mono}`;
-  }
-  return _measureCtx;
-}
-// Meta is truncated before measuring so the box always fits what we draw.
-function nodeMeta(n) {
-  if (isContainer(n.kind)) return n.kind === 'array' ? `[${n.size}]` : `{${n.size}}`;
-  let t = scalarText(n.value, n.kind);
-  if (t.length > 26) t = t.slice(0, 25) + '…';
-  return t;
+function islandTheme() {
+  return document.documentElement.dataset.theme === 'light' ? 'light' : 'dark';
 }
 
-function layoutTree(root) {
-  const ctx = measureCtx();
-  const nodes = [], edges = [];
-  let cursorX = 0, maxY = 0;
+// Kept in step with MAX_NODES in frontend/src/main.tsx. The component's own
+// limit prop did not reliably trip on large payloads, so the host enforces the
+// guard itself — deterministic and testable.
+const DIAGRAM_MAX_NODES = 1500;
 
-  function visibleKids(n) { return (n.open && n.children) ? n.children : []; }
-
-  function walk(n, depth) {
-    if (depth > DG_MAX_DEPTH) return cursorX;
-    const label = n.key, meta = nodeMeta(n);
-    const w = Math.max(64, Math.min(230, ctx.measureText(label).width + ctx.measureText(meta).width + 30));
-    const kids = visibleKids(n);
-    let x;
-    if (!kids.length) {
-      x = cursorX + w / 2;
-      cursorX += w + DG_H_GAP;
-    } else {
-      const xs = kids.map(k => walk(k, depth + 1));
-      x = (xs[0] + xs[xs.length - 1]) / 2;
-    }
-    const y = depth * (DG_NODE_H + DG_V_GAP);
-    const node = { n, x, y, w, h: DG_NODE_H, label, meta, depth };
-    nodes.push(node);
-    n._layout = node;
-    maxY = Math.max(maxY, y + DG_NODE_H);
-    return x;
-  }
-  walk(root, 0);
-
-  for (const node of nodes) {
-    for (const k of visibleKids(node.n)) {
-      if (k._layout) edges.push({ from: node, to: k._layout });
-    }
-  }
-  return { nodes, edges, width: Math.max(cursorX, 1), height: Math.max(maxY, 1) };
+function renderDiagramTooLarge(host, count) {
+  // The host may still be owned by a previous React mount; hand it back to the
+  // DOM before writing our own fallback markup.
+  if (islandState === 'ready' && window.HookViewDiagram) window.HookViewDiagram.unmount();
+  host.textContent = '';
+  const wrap = document.createElement('div');
+  wrap.className = 'hv-limit';
+  const strong = document.createElement('strong');
+  strong.textContent = 'Too many nodes to draw';
+  const span = document.createElement('span');
+  span.textContent =
+    `This payload expands to ${count.toLocaleString()} nodes (limit ` +
+    `${DIAGRAM_MAX_NODES.toLocaleString()}). Use the Keys tab to inspect it.`;
+  wrap.appendChild(strong);
+  wrap.appendChild(span);
+  host.appendChild(wrap);
 }
 
-function svgEl(tag, attrs) {
-  const e = document.createElementNS(SVGNS, tag);
-  if (attrs) for (const k in attrs) e.setAttribute(k, attrs[k]);
-  return e;
-}
+function renderIsland() {
+  const host = $('diagramHost');
 
-const dgView = { scale: 1, tx: 0, ty: 0, layout: null, g: null, tree: null };
-let drag = null; // active pan gesture, or null
-
-function applyView() {
-  if (!dgView.g) return;
-  dgView.g.setAttribute('transform', `translate(${dgView.tx} ${dgView.ty}) scale(${dgView.scale})`);
-  document.getElementById('dgZoomLabel').textContent = Math.round(dgView.scale * 100) + '%';
-}
-
-function fitView() {
-  const L = dgView.layout;
-  if (!L) return;
-  const wrap = document.getElementById('diagramWrap');
-  const r = wrap.getBoundingClientRect();
-  if (!r.width || !r.height) return;
-  const pad = 44;
-  const s = Math.min((r.width - pad * 2) / L.width, (r.height - pad * 2) / L.height, 1.3);
-  dgView.scale = Math.max(0.15, Math.min(s, 1.3));
-  dgView.tx = (r.width - L.width * dgView.scale) / 2;
-  dgView.ty = (r.height - L.height * dgView.scale) / 2;
-  applyView();
-}
-
-function renderDiagram() {
-  const svg = document.getElementById('diagramSvg');
-  svg.textContent = '';
-  if (!dgView.tree) return;
-  const layout = layoutTree(dgView.tree);
-  dgView.layout = layout;
-
-  const g = svgEl('g');
-  svg.appendChild(g);
-  dgView.g = g;
-
-  // edges first so nodes paint over them
-  for (const e of layout.edges) {
-    const x1 = e.from.x, y1 = e.from.y + e.from.h;
-    const x2 = e.to.x, y2 = e.to.y;
-    const mid = (y1 + y2) / 2;
-    g.appendChild(svgEl('path', {
-      class: 'dg-edge',
-      d: `M ${x1} ${y1} C ${x1} ${mid}, ${x2} ${mid}, ${x2} ${y2}`,
-    }));
+  // Guard before mounting: a very large payload would otherwise hand the
+  // layout engine thousands of nodes and stall the modal.
+  const nodeCount = detailState.tree ? countNodes(detailState.tree) : 0;
+  if (nodeCount > DIAGRAM_MAX_NODES) {
+    renderDiagramTooLarge(host, nodeCount);
+    return;
   }
 
-  for (const nd of layout.nodes) {
-    const isRoot = nd.depth === 0;
-    const container = isContainer(nd.n.kind) && nd.n.children.length > 0;
-    const grp = svgEl('g', { class: 'dg-node' + (isRoot ? ' dg-root' : '') + (container ? ' is-container' : '') });
-    grp.appendChild(svgEl('rect', {
-      x: nd.x - nd.w / 2, y: nd.y, width: nd.w, height: nd.h, rx: 8,
-    }));
-
-    const keyText = svgEl('text', {
-      class: 'dg-key', x: nd.x - nd.w / 2 + 11, y: nd.y + nd.h / 2,
-      'dominant-baseline': 'central',
-    });
-    keyText.textContent = nd.label;
-    grp.appendChild(keyText);
-
-    const metaText = svgEl('text', {
-      class: 'dg-value v-' + nd.n.kind, x: nd.x + nd.w / 2 - 11, y: nd.y + nd.h / 2,
-      'text-anchor': 'end', 'dominant-baseline': 'central',
-    });
-    metaText.textContent = nd.meta;
-    grp.appendChild(metaText);
-
-    if (container) {
-      // collapse/expand toggle on the bottom edge, toward the children
-      const cy = nd.y + nd.h, cx = nd.x;
-      const dot = svgEl('circle', { class: 'dg-toggle-dot', cx, cy, r: 7 });
-      const lineH = svgEl('line', { class: 'dg-toggle-sign', x1: cx - 3.5, y1: cy, x2: cx + 3.5, y2: cy });
-      grp.appendChild(dot);
-      grp.appendChild(lineH);
-      if (!nd.n.open) {
-        grp.appendChild(svgEl('line', { class: 'dg-toggle-sign', x1: cx, y1: cy - 3.5, x2: cx, y2: cy + 3.5 }));
-      }
-      grp.setAttribute('tabindex', '0');
-      grp.setAttribute('role', 'button');
-      grp.setAttribute('aria-expanded', String(!!nd.n.open));
-      grp.setAttribute('aria-label', `${nd.n.open ? 'Collapse' : 'Expand'} ${nd.n.path || 'root'}`);
-      const toggle = (ev) => {
-        ev.stopPropagation();
-        // Ignore the click that ends a pan, so dragging the canvas never
-        // collapses a node under the pointer.
-        if (drag && drag.moved) return;
-        nd.n.open = !nd.n.open;
-        renderDiagram();
-      };
-      grp.addEventListener('click', toggle);
-      grp.addEventListener('keydown', (ev) => {
-        if (ev.key === 'Enter' || ev.key === ' ' || ev.key === 'Spacebar') { ev.preventDefault(); toggle(ev); }
-      });
-    }
-    g.appendChild(grp);
+  const r = $('diagramWrap').getBoundingClientRect();
+  if (r.width > 0 && r.height > 0) {
+    // The host is position:absolute; inset:0, so CSS already sizes it. Pinning a
+    // pixel size here would freeze the pre-transition width and stop the canvas
+    // from following the modal into fullscreen.
+    host.style.width = '';
+    host.style.height = '';
+  } else {
+    // Panel not measurable yet (still display:none) — give the island a
+    // concrete box so jsoncrack, which sizes from its wrapper, can lay out.
+    host.style.width = window.innerWidth + 'px';
+    host.style.height = Math.round(window.innerHeight * 0.6) + 'px';
   }
-  applyView();
+  window.HookViewDiagram.mount(host, { json: islandPayload, theme: islandTheme() });
 }
 
-function setAllOpen(n, open) {
-  n.open = open && isContainer(n.kind) && n.children.length > 0;
-  n.children.forEach(c => setAllOpen(c, open));
+function loadIsland() {
+  if (islandState === 'loading' || islandState === 'ready') return;
+  islandState = 'loading';
+  $('diagramLoading').hidden = false;
+  const s = document.createElement('script');
+  s.type = 'module';
+  s.src = ISLAND_SRC;
+  s.onload = () => {
+    islandState = 'ready';
+    $('diagramLoading').hidden = true;
+    if (islandPayload !== null) renderIsland();
+  };
+  s.onerror = () => {
+    islandState = 'failed';
+    $('diagramLoading').hidden = true;
+    const host = $('diagramHost');
+    host.textContent = '';
+    const msg = document.createElement('div');
+    msg.className = 'hv-limit';
+    const strong = document.createElement('strong');
+    strong.textContent = 'Diagram bundle failed to load';
+    const span = document.createElement('span');
+    span.textContent = 'Build it with `cd frontend && npm install && npm run build`, then reload.';
+    msg.appendChild(strong); msg.appendChild(span);
+    host.appendChild(msg);
+  };
+  document.head.appendChild(s);
 }
+
+// Called by the modal when the Diagram tab is shown.
+function showDiagram(payload) {
+  islandPayload = payload;
+  loadIsland();
+  if (islandState === 'ready') renderIsland();
+}
+
+// Keep the island's theme in step with the app's light/dark toggle.
+function syncDiagramTheme() {
+  if (islandState === 'ready' && islandPayload !== null) renderIsland();
+}
+
 
 // ── Modal controller ───────────────────────────────────────
 const detailOverlay = $('detailOverlay');
@@ -2420,7 +2382,7 @@ const tabDiagram = $('tabDiagram');
 const panelKeys = $('panelKeys');
 const panelDiagram = $('panelDiagram');
 
-const detailState = { open: false, fullscreen: false, trigger: null, tab: 'keys', diagramDirty: true, tree: null };
+const detailState = { open: false, fullscreen: false, trigger: null, tab: 'keys', tree: null, payload: null };
 
 function setFullscreen(on) {
   detailState.fullscreen = !!on;
@@ -2429,7 +2391,12 @@ function setFullscreen(on) {
   const btn = $('detailFullscreenBtn');
   btn.setAttribute('aria-label', detailState.fullscreen ? 'Exit fullscreen' : 'Enter fullscreen');
   btn.title = detailState.fullscreen ? 'Exit fullscreen' : 'Toggle fullscreen';
-  if (detailState.tab === 'diagram') requestAnimationFrame(fitView);
+  // The island sizes from its wrapper, so re-measure after the box changes.
+  if (detailState.tab === 'diagram' && islandState === 'ready') {
+    // Wait for the modal's width transition to settle, otherwise the island
+    // measures the pre-transition box.
+    setTimeout(renderIsland, 320);
+  }
 }
 
 function selectTab(name) {
@@ -2450,12 +2417,11 @@ function selectTab(name) {
       renderKeysTree(detailState.tree);
       panelKeys.scrollTop = st;
     }
-  } else if (detailState.tree) {
-    renderDiagram(); // preserves the current pan/zoom transform
-    if (detailState.diagramDirty) {
-      detailState.diagramDirty = false;
-      requestAnimationFrame(fitView); // fit only on first reveal
-    }
+  } else {
+    // The island owns its own camera; just make sure it has the current payload
+    // and a measured box to render into.
+    showDiagram(detailState.payload);
+    requestAnimationFrame(() => { if (detailState.tab === 'diagram') renderIsland(); });
   }
 }
 
@@ -2467,18 +2433,14 @@ function focusableInModal() {
 function openDetail(log, trigger) {
   detailState.trigger = trigger || null;
   const tree = buildTree(log.payload);
-  applyDefaultExpansion(tree, 0);
-  dgView.tree = tree;
+  applyDefaultExpansion(tree);
   detailState.tree = tree;
+  detailState.payload = log.payload;
 
   $('detailId').textContent = '#' + log.id;
   const kind = kindOf(log.payload);
   $('detailMeta').textContent = `${formatTimestamp(log.timestamp)} · ${log.ip_address} · ${BADGE_LABEL[kind] || kind}`;
   $('keysCount').textContent = String(countNodes(tree));
-
-  // Reset the diagram view so each open starts fitted.
-  dgView.scale = 1; dgView.tx = 0; dgView.ty = 0;
-  detailState.diagramDirty = true;
 
   detailOverlay.inert = false;
   detailOverlay.removeAttribute('aria-hidden');
@@ -2496,10 +2458,9 @@ function closeDetail() {
   detailOverlay.classList.remove('open');
   detailOverlay.inert = true;
   detailOverlay.setAttribute('aria-hidden', 'true');
-  // Free the SVG; the tree is rebuilt per open.
-  document.getElementById('diagramSvg').textContent = '';
-  dgView.g = null; dgView.layout = null; dgView.tree = null;
+  // The tree is rebuilt per open; the island keeps its canvas between opens.
   detailState.tree = null;
+  detailState.payload = null;
   if (detailState.trigger && document.contains(detailState.trigger)) detailState.trigger.focus();
   detailState.trigger = null;
 }
@@ -2519,54 +2480,6 @@ document.querySelector('.modal-tabs').addEventListener('keydown', (e) => {
   selectTab(next);
   (next === 'keys' ? tabKeys : tabDiagram).focus();
 });
-
-$('dgZoomIn').addEventListener('click', () => { dgView.scale = Math.min(3, dgView.scale * 1.25); applyView(); });
-$('dgZoomOut').addEventListener('click', () => { dgView.scale = Math.max(0.15, dgView.scale / 1.25); applyView(); });
-$('dgFit').addEventListener('click', fitView);
-$('dgExpandAll').addEventListener('click', () => { setAllOpen(dgView.tree, true); renderDiagram(); requestAnimationFrame(fitView); });
-$('dgCollapseAll').addEventListener('click', () => {
-  // Keep the root open so its children remain visible as entry points.
-  setAllOpen(dgView.tree, false);
-  if (dgView.tree) dgView.tree.open = true;
-  renderDiagram(); requestAnimationFrame(fitView);
-});
-
-// Wheel zoom about the pointer, drag to pan.
-const diagramSvg = $('diagramSvg');
-diagramSvg.addEventListener('wheel', (e) => {
-  e.preventDefault();
-  const r = diagramSvg.getBoundingClientRect();
-  const mx = e.clientX - r.left, my = e.clientY - r.top;
-  const next = Math.max(0.15, Math.min(3, dgView.scale * Math.exp(-e.deltaY * 0.0015)));
-  const k = next / dgView.scale;
-  dgView.tx = mx - k * (mx - dgView.tx);
-  dgView.ty = my - k * (my - dgView.ty);
-  dgView.scale = next;
-  applyView();
-}, { passive: false });
-
-diagramSvg.addEventListener('pointerdown', (e) => {
-  if (e.button !== 0) return;
-  drag = { x: e.clientX, y: e.clientY, tx: dgView.tx, ty: dgView.ty, moved: false };
-  diagramSvg.classList.add('panning');
-  diagramSvg.setPointerCapture(e.pointerId);
-});
-diagramSvg.addEventListener('pointermove', (e) => {
-  if (!drag) return;
-  const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
-  if (Math.abs(dx) > 2 || Math.abs(dy) > 2) drag.moved = true;
-  dgView.tx = drag.tx + dx;
-  dgView.ty = drag.ty + dy;
-  applyView();
-});
-function endDrag(e) {
-  if (!drag) return;
-  diagramSvg.classList.remove('panning');
-  try { diagramSvg.releasePointerCapture(e.pointerId); } catch { /* already released */ }
-  drag = null;
-}
-diagramSvg.addEventListener('pointerup', endDrag);
-diagramSvg.addEventListener('pointercancel', endDrag);
 
 // Escape: exit fullscreen first, then close. Tab is trapped inside the dialog.
 document.addEventListener('keydown', (e) => {
@@ -2588,7 +2501,9 @@ document.addEventListener('keydown', (e) => {
 
 // Re-fit the diagram when the viewport changes while it's visible.
 window.addEventListener('resize', () => {
-  if (detailState.open && detailState.tab === 'diagram') requestAnimationFrame(fitView);
+  if (detailState.open && detailState.tab === 'diagram' && islandState === 'ready') {
+    requestAnimationFrame(renderIsland);
+  }
 });
 
 // ── Theme ──────────────────────────────────────────────────
@@ -2604,6 +2519,8 @@ function currentTheme() {
 // written to storage.
 function applyTheme(theme, persist) {
   document.documentElement.dataset.theme = theme;
+  // The diagram island renders its own canvas, so it has to be told too.
+  syncDiagramTheme();
   if (persist) {
     try { localStorage.setItem('hookview_theme', theme); } catch { /* private mode */ }
   }

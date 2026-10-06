@@ -23,6 +23,13 @@ data/*
 
 # Internal tooling
 .superpowers/
+.omc/
+
+# Frontend build toolchain. The built output under static/app/ IS committed so
+# the app runs without Node; only the toolchain and its caches are ignored.
+frontend/node_modules/
+frontend/.vite/
+frontend/dist/
 
 # Environment variables
 .env
