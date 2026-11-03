@@ -53,6 +53,11 @@
     --status-disconnected: #f87171;
     --status-connecting: #fbbf24;
 
+    /* Log-level semantic tokens (text/glyph tints, all ≥ 4.5:1 on --bg-card) */
+    --level-info: #60a5fa;
+    --level-ok: #34d399;
+    --level-warn: #fbbf24;
+    --level-error: #f87171;
     /* Panels, insets, overlays */
     --panel: rgba(6,7,10,0.55);
     --panel-head: rgba(10,12,16,0.94);
@@ -117,6 +122,12 @@
     --status-connected: #059669;
     --status-disconnected: #dc2626;
     --status-connecting: #b45309;
+
+    /* Log-level semantic tokens (darker variants for light surfaces, ≥ 4.5:1 on #fff) */
+    --level-info: #1d4ed8;
+    --level-ok: #047857;
+    --level-warn: #b45309;
+    --level-error: #dc2626;
 
     --panel: #ffffff;
     --panel-head: rgba(248,250,252,0.96);
@@ -767,6 +778,7 @@
 
   /* ── Log Table: single flat panel (one frame, no nested bezel) ── */
   .log-shell {
+    position: relative;
     flex: 1; min-height: 0;
     margin: 10px 22px 0;
     background: var(--panel);
@@ -775,14 +787,49 @@
     box-shadow: var(--inner-hi);
     overflow: hidden;
     display: flex;
+  .log-container { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; scroll-padding-top: 36px; }
+  .log-container:focus { outline: none; }
+  .log-container:focus-visible {
+    outline: none;
+    box-shadow: inset 0 0 0 2px var(--bg-primary), inset 0 0 0 4px var(--accent);
   }
-  .log-container { flex: 1; min-height: 0; overflow: auto; }
   .log-table { width: 100%; border-collapse: separate; border-spacing: 0; table-layout: fixed; }
   .log-table thead { position: sticky; top: 0; z-index: 5; }
+  /* ── Load-older bar (scrolls off like chat "load earlier" rows; thead stays sticky at top:0) ── */
+  .load-older-bar {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    min-height: 44px;
+    background: var(--panel-head);
+    border-bottom: 1px solid var(--border);
+  }
+  .load-older-bar[hidden] { display: none; }
+  .load-older-info { font-size: 11px; color: var(--text-muted); font-family: var(--font-sans); }
+
+  /* ── Jump-to-latest pill ─────────────────────────────────── */
+  .jump-pill {
+    position: absolute; bottom: 18px; left: 50%; transform: translateX(-50%);
+    z-index: 7;
+    display: inline-flex; align-items: center; gap: 6px;
+    min-height: 44px; padding: 0 18px;
+    background: var(--accent); color: var(--on-accent);
+    border: none; border-radius: 999px;
+    font-family: var(--font-sans); font-size: 13px; font-weight: 600;
+    cursor: pointer;
+    box-shadow: var(--shadow-soft);
+    opacity: 0; visibility: hidden;
+    transition: opacity 0.15s var(--ease-out), transform 0.15s var(--ease-out);
+  }
+  .jump-pill.visible { opacity: 1; visibility: visible; }
+  .jump-pill:hover { filter: brightness(1.08); }
+  .jump-pill:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--bg-primary), 0 0 0 4px var(--accent), var(--shadow-soft); }
+  .jump-pill svg { width: 14px; height: 14px; fill: currentColor; flex-shrink: 0; }
+  @media (prefers-reduced-motion: reduce) {
+    .jump-pill { transition: none; }
+  }
   .log-table th {
     padding: 11px 14px;
     text-align: left;
-    font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.14em;
+    font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.14em;
     color: var(--text-muted);
     background: var(--panel-head);
     backdrop-filter: blur(10px);
@@ -793,11 +840,11 @@
     white-space: nowrap;
   }
   .log-table td {
-    padding: 11px 14px;
+    padding: 10px 14px;
     font-size: 13px;
     border-bottom: 1px solid rgb(var(--ink) / 0.045);
     vertical-align: top;
-    line-height: 1.45;
+    line-height: 1.5;
   }
   .log-table tbody tr:last-child td { border-bottom: none; }
   .log-table tbody tr { transition: background 0.12s var(--ease-out); }
@@ -813,7 +860,7 @@
      icon buttons never exceed the fixed column width (which would force a
      horizontal scrollbar on the table). */
   .log-table td.log-actions { padding-left: 0; padding-right: 10px; }
-  .log-actions { display: inline-flex; align-items: center; justify-content: flex-end; gap: 1px; }
+  .log-actions { display: inline-flex; align-items: center; justify-content: flex-end; gap: 6px; }
 
   .log-id { color: var(--text-muted); font-family: var(--font-mono); font-size: 12px; font-variant-numeric: tabular-nums; }
   .log-ts { font-family: var(--font-mono); font-size: 12px; color: var(--text-secondary); white-space: nowrap; }
@@ -837,7 +884,7 @@
   .type-boolean{ color: var(--purple); background: rgba(167,139,250,0.10); border-color: rgba(167,139,250,0.22); }
   .type-null   { color: var(--text-secondary); background: rgba(154,166,182,0.10); border-color: rgba(154,166,182,0.20); }
 
-  .msg { font-family: var(--font-mono); font-size: 13px; vertical-align: middle; }
+  .msg { font-family: var(--font-mono); font-size: 13px; line-height: 1.5; vertical-align: middle; }
   .msg-string { color: var(--green); }
   .msg-string::before { content: '"'; opacity: 0.4; }
   .msg-string::after { content: '"'; opacity: 0.4; }
@@ -963,7 +1010,7 @@
   .log-file .fname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
   .row-action {
-    width: 27px; height: 27px;
+    width: 34px; height: 34px;
     display: inline-flex; align-items: center; justify-content: center;
     background: transparent; border: none; border-radius: var(--radius-xs);
     color: var(--text-muted); cursor: pointer;
@@ -991,10 +1038,14 @@
 
   /* ── New row animation ──────────────────────────────────── */
   @keyframes slideIn {
-    from { opacity: 0; transform: translateY(-10px); background: rgba(34,211,238,0.06); }
-    to { opacity: 1; transform: translateY(0); background: transparent; }
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
   }
-  .log-table tbody tr.new-row { animation: slideIn 0.35s var(--ease-out); }
+  .log-table tbody tr.new-row { animation: slideIn 0.25s var(--ease-out); }
+  @media (prefers-reduced-motion: reduce) {
+    .log-table tbody tr.new-row { animation: none; }
+  }
+  .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
 
   /* ── Empty state ────────────────────────────────────────── */
   .empty-state {
@@ -1166,7 +1217,11 @@
   <div class="main-area">
     <div class="log-column">
       <div class="log-shell">
-      <div class="log-container" id="logContainer">
+      <div class="log-container" id="logContainer" tabindex="0" role="log" aria-relevant="nothing" aria-label="Log stream">
+        <div class="load-older-bar" id="loadOlderBar" hidden>
+          <button class="btn btn-secondary btn-sm" id="loadMoreBtn">Load 50 older</button>
+          <span class="load-older-info" id="loadMoreInfo"></span>
+        </div>
         <div class="empty-state" id="emptyState">
           <svg viewBox="0 0 24 24"><path d="M20 8h-2.81a5.985 5.985 0 0 0-1.82-1.96L17 4.41 15.59 3l-2.17 2.17C12.96 5.06 12.49 5 12 5c-.49 0-.96.06-1.41.17L8.41 3 7 4.41l1.62 1.63C7.88 6.55 7.26 7.22 6.81 8H4v2h2.09c-.05.33-.09.66-.09 1v1H4v2h2v1c0 .34.04.67.09 1H4v2h2.81c1.04 1.79 2.97 3 5.19 3s4.15-1.21 5.19-3H20v-2h-2.09c.05-.33.09-.66.09-1v-1h2v-2h-2v-1c0-.34-.04-.67-.09-1H20V8z"/></svg>
           <h3>Waiting for logs</h3>
@@ -1181,33 +1236,29 @@
         <table class="log-table" id="logTable" style="display:none">
           <thead>
             <tr>
-              <th class="col-id">#</th>
-              <th class="col-timestamp">Timestamp</th>
-              <th class="col-ip">IP</th>
-              <th class="col-message">Payload</th>
-              <th class="col-file">File</th>
-              <th class="col-actions"></th>
+              <th class="col-id" scope="col">#</th>
+              <th class="col-timestamp" scope="col">Timestamp</th>
+              <th class="col-ip" scope="col">IP</th>
+              <th class="col-message" scope="col">Payload</th>
+              <th class="col-file" scope="col">File</th>
+              <th class="col-actions" scope="col"><span class="sr-only">Actions</span></th>
             </tr>
           </thead>
           <tbody id="logBody"></tbody>
-          <tfoot id="loadMoreRow" style="display:none">
-            <tr>
-              <td colspan="6" style="text-align:center;padding:14px;border-bottom:none;">
-                <button class="btn btn-secondary btn-sm" id="loadMoreBtn">Load 50 more</button>
-                <span style="font-size:12px;color:var(--text-muted);margin-left:8px;" id="loadMoreInfo"></span>
-              </td>
-            </tr>
-          </tfoot>
         </table>
+      </div>
+      <button class="jump-pill" id="jumpPill" aria-live="polite" aria-label="Jump to latest logs">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4V20m0-16l-6 6m6-6l6 6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span id="jumpPillText">0 new</span>
+      </button>
       </div>
       </div>
     </div>
-  </div>
 
   <!-- ── Footer ──────────────────────────────────────────── -->
   <div class="footer">
     <span><span id="visibleCount">0</span> visible</span>
-    <span><a href="/x0art/docs" target="_blank">API Docs</a> <span style="color:var(--border-light);margin:0 6px;">·</span> <a href="javascript:void(0)" id="scrollToBottom">Bottom ↓</a></span>
+    <span><a href="/x0art/docs" target="_blank">API Docs</a></span>
   </div>
 </div>
 
@@ -1306,6 +1357,8 @@ const state = {
   logs: [],
   filteredLogs: [],
   autoScroll: true,
+  stickToBottom: true,
+  pendingCount: 0,
   prettyPayload: false,
   searchQuery: '',
   abortController: null,
@@ -1334,7 +1387,9 @@ const clearBtn = $('clearBtn');
 const scrollTrack = $('scrollTrack');
 const prettyTrack = $('prettyTrack');
 const logContainer = $('logContainer');
-const scrollToBottom = $('scrollToBottom');
+const jumpPill = $('jumpPill');
+const jumpPillText = $('jumpPillText');
+const loadOlderBar = $('loadOlderBar');
 const testerBtn = $('testerBtn');
 const testerDrawer = $('testerDrawer');
 const testerOverlay = $('testerOverlay');
@@ -1350,7 +1405,6 @@ const fileUpload = $('fileUpload');
 const emptyStateSendBtn = $('emptyStateSendBtn');
 const presets = $('presets');
 const loadMoreBtn = $('loadMoreBtn');
-const loadMoreRow = $('loadMoreRow');
 const loadMoreInfo = $('loadMoreInfo');
 const exportBtn = $('exportBtn');
 const importBtn = $('importBtn');
@@ -1647,20 +1701,97 @@ sendTestBtn.addEventListener('click', async () => {
   }
 });
 
-// ── Auto-scroll ────────────────────────────────────────────
+// ── Auto-scroll / sticky-bottom state machine ─────────────
+const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
+
+function scrollToBottomOfList(smooth) {
+  requestAnimationFrame(() => {
+    if (smooth && !reducedMotion.matches) {
+      logContainer.scrollTo({ top: logContainer.scrollHeight, behavior: 'smooth' });
+    } else {
+      logContainer.scrollTop = logContainer.scrollHeight;
+    }
+  });
+}
+
+function shouldAutoScroll() {
+  return state.autoScroll && state.stickToBottom;
+}
+
+function updateJumpPill() {
+  const n = state.pendingCount;
+  if (n > 0 && !state.stickToBottom) {
+    jumpPillText.textContent = n + ' new';
+    jumpPill.classList.add('visible');
+  } else {
+    jumpPill.classList.remove('visible');
+  }
+}
+
+function hideJumpPill() {
+  state.pendingCount = 0;
+  jumpPill.classList.remove('visible');
+}
+
+// Scroll handler: track whether the user is near the bottom.
+// When the user scrolls up past 60px, pause the pin (stickToBottom = false).
+// When the user scrolls back near the bottom, resume (stickToBottom = true).
+let scrollThrottleTime = 0;
+logContainer.addEventListener('scroll', () => {
+  const now = performance.now();
+  if (now - scrollThrottleTime < 50) return;
+  scrollThrottleTime = now;
+
+  const nearBottom = (logContainer.scrollHeight - logContainer.scrollTop - logContainer.clientHeight) <= 60;
+  if (nearBottom) {
+    if (!state.stickToBottom) {
+      state.stickToBottom = true;
+      hideJumpPill();
+    }
+  } else if (state.stickToBottom && state.autoScroll) {
+    state.stickToBottom = false;
+    updateJumpPill();
+  }
+});
+
+// Jump pill: click to resume + scroll to bottom.
+jumpPill.addEventListener('click', () => {
+  state.stickToBottom = true;
+  hideJumpPill();
+  scrollToBottomOfList(true);
+});
+
+// Auto-scroll toggle (master switch): when turned ON, pin to bottom immediately.
 scrollTrack.addEventListener('click', (e) => {
   e.stopPropagation();
   state.autoScroll = !state.autoScroll;
   scrollTrack.classList.toggle('active', state.autoScroll);
   document.getElementById('autoScrollToggle').setAttribute('aria-checked', String(state.autoScroll));
-  if (state.autoScroll) scrollToBottomOfList();
+  if (state.autoScroll) {
+    state.stickToBottom = true;
+    hideJumpPill();
+    scrollToBottomOfList(true);
+  } else {
+    // Auto-scroll OFF: pause the pin, keep position; pill stays hidden because
+    // shouldAutoScroll() is false so no new entries will count as pending.
+    state.stickToBottom = false;
+  }
 });
-scrollToBottom.addEventListener('click', () => scrollToBottomOfList());
-function scrollToBottomOfList() { requestAnimationFrame(() => { logContainer.scrollTop = logContainer.scrollHeight; }); }
-function shouldAutoScroll() {
-  if (!state.autoScroll) return false;
-  return (logContainer.scrollHeight - logContainer.scrollTop - logContainer.clientHeight) <= 100;
-}
+
+// Keyboard: End → jump to latest; Home → top.
+logContainer.addEventListener('keydown', (e) => {
+  if (e.key === 'End') {
+    e.preventDefault();
+    state.stickToBottom = true;
+    hideJumpPill();
+    scrollToBottomOfList(true);
+  } else if (e.key === 'Home') {
+    e.preventDefault();
+    logContainer.scrollTo({ top: 0, behavior: reducedMotion.matches ? 'auto' : 'smooth' });
+    if (state.autoScroll) state.stickToBottom = false;
+    updateJumpPill();
+  }
+});
 
 // ── Pretty payload toggle ───────────────────────────────────
 // Global mode flips every payload at once. A row the user expanded/collapsed by
@@ -1722,6 +1853,19 @@ function buildActionsCell(log) {
 }
 
 // ── Render ─────────────────────────────────────────────────
+const MAX_DOM_ROWS = 400;
+
+// Keep the DOM bounded: when the rendered row count exceeds the cap, drop the
+// oldest visible rows (the top of the terminal-ordered table, i.e. the oldest
+// entries) instantly — no animation, no server-state change.
+function enforceDomCap() {
+  const excess = logBody.children.length - MAX_DOM_ROWS;
+  if (excess <= 0) return;
+  for (let i = 0; i < excess; i++) {
+    if (logBody.firstChild) logBody.removeChild(logBody.firstChild);
+  }
+}
+
 function renderLogs() {
   const query = state.searchQuery;
   let filtered = state.logs;
@@ -1735,12 +1879,18 @@ function renderLogs() {
 
   if (state.logs.length === 0) {
     emptyState.style.display = 'flex'; logTable.style.display = 'none'; visibleCount.textContent = '0';
+    loadOlderBar.hidden = true;
+    hideJumpPill();
     return;
   }
   emptyState.style.display = 'none'; logTable.style.display = '';
 
+  // Terminal ordering: display oldest first, newest last (bottom).
+  // state.logs / filtered are newest-first, so iterate in reverse.
+  const displayOrder = [...filtered].reverse();
+
   const fragment = document.createDocumentFragment();
-  for (const log of filtered) {
+  for (const log of displayOrder) {
     const tr = document.createElement('tr');
     tr.dataset.id = log.id;
     if (log._isNew) { tr.classList.add('new-row'); delete log._isNew; }
@@ -1758,21 +1908,25 @@ function renderLogs() {
 
   logBody.innerHTML = '';
   logBody.appendChild(fragment);
+  enforceDomCap();
   logCount.textContent = state.logs.length;
   visibleCount.textContent = filtered.length;
 
-  // Show/hide load more button
-  if (!query && state.loadedOffset < state.totalCount && state.totalCount > state.logs.length) {
-    loadMoreRow.style.display = '';
+  // Load-older bar (top): show when there are older entries not yet loaded.
+  if (!query && state.loadedOffset < state.totalCount) {
+    loadOlderBar.hidden = false;
     const remaining = state.totalCount - state.loadedOffset;
     const batchSize = Math.min(state.pageSize, remaining);
-    loadMoreBtn.textContent = `Load ${batchSize} more`;
+    loadMoreBtn.textContent = `Load ${batchSize} older`;
     loadMoreInfo.textContent = `(${state.logs.length} of ${state.totalCount})`;
   } else {
-    loadMoreRow.style.display = 'none';
+    loadOlderBar.hidden = true;
   }
 
-  if (state.autoScroll) requestAnimationFrame(() => scrollToBottomOfList());
+  // Sticky-bottom: only scroll to the newest entry when the pin is active.
+  if (state.autoScroll && state.stickToBottom) {
+    requestAnimationFrame(() => scrollToBottomOfList(false));
+  }
 }
 
 // ── Add a single log entry (from SSE) ──────────────────────
@@ -1794,10 +1948,20 @@ function addLogEntry(log) {
 
     tr.appendChild(tdId); tr.appendChild(tdTs); tr.appendChild(tdIp); tr.appendChild(tdMsg); tr.appendChild(tdFile); tr.appendChild(tdAct);
     emptyState.style.display = 'none'; logTable.style.display = '';
-    logBody.prepend(tr);
+    // Terminal order: newest entry is appended to the END (bottom) of the table.
+    logBody.appendChild(tr);
+    enforceDomCap();
     logCount.textContent = state.logs.length;
     visibleCount.textContent = state.logs.length;
-    if (shouldAutoScroll()) requestAnimationFrame(() => scrollToBottomOfList());
+
+    if (shouldAutoScroll()) {
+      requestAnimationFrame(() => scrollToBottomOfList(false));
+    } else if (state.autoScroll) {
+      // Auto-scroll master is ON but user scrolled up — count the miss, show pill.
+      state.pendingCount++;
+      updateJumpPill();
+    }
+    // else: autoScroll is OFF — no pending count, view stays put.
   } else {
     renderLogs();
   }
@@ -1831,6 +1995,7 @@ async function loadHistory(offset = 0) {
       state.logs = data.items || [];
       state.loadedOffset = data.items.length;
       state.deletedIds = new Set(); // server total is authoritative again
+      state.stickToBottom = true;   // initial load: always pin to the newest entry
     } else {
       // Append older entries to the end (state.logs is newest-first)
       state.logs.push(...(data.items || []));
@@ -1843,29 +2008,56 @@ async function loadHistory(offset = 0) {
   }
 }
 
-// ── Load more (pagination) ──────────────────────────────────
+// ── Load older (pagination) ───────────────────────────────
+// Older entries land at the TOP of the terminal-ordered table, so a re-render
+// would shift the viewport. Anchor technique: record the topmost visible row
+// before the fetch, then restore its position afterwards.
 loadMoreBtn.addEventListener('click', async () => {
   if (state.loadMoreLoading) return;
   state.loadMoreLoading = true;
-  loadMoreBtn.textContent = 'Loading...';
+  loadMoreBtn.textContent = 'Loading…';
   loadMoreBtn.disabled = true;
+
+  // Anchor: record the topmost visible row and its pixel position within the
+  // container's scroll content so we can restore it after the re-render.
+  const firstVisibleRow = logBody.firstElementChild;
+  const anchorId = firstVisibleRow ? firstVisibleRow.dataset.id : null;
+  const anchorRect = firstVisibleRow
+    ? firstVisibleRow.getBoundingClientRect()
+    : null;
+  const anchorContentOffset = anchorRect
+    ? anchorRect.top - logContainer.getBoundingClientRect().top + logContainer.scrollTop
+    : 0;
+
   try {
     const res = await fetch(`/logs?limit=${state.pageSize}&offset=${state.loadedOffset}`, {
       headers: { 'Authorization': `Bearer ${state.apiKey}` },
     });
-    if (!res.ok) throw new Error(`Failed to load more (${res.status})`);
+    if (!res.ok) throw new Error(`Failed to load older entries (${res.status})`);
     const data = await res.json();
     state.logs.push(...(data.items || []));
     state.loadedOffset += data.items.length;
     renderLogs();
+
+    // Restore scroll: put the anchor row back where it was (top of viewport).
+    if (anchorId && anchorContentOffset) {
+      const anchorRow = logBody.querySelector(`tr[data-id="${anchorId}"]`);
+      if (anchorRow) {
+        const newRect = anchorRow.getBoundingClientRect();
+        const newOffset = newRect.top - logContainer.getBoundingClientRect().top + logContainer.scrollTop;
+        logContainer.scrollTop += newOffset - anchorContentOffset;
+      } else {
+        // The anchor row was dropped by the DOM cap: fall back to the top of
+        // the remaining content rather than leaving the user stranded.
+        logContainer.scrollTop = 0;
+      }
+    }
   } catch (err) {
-    console.error('Load more error:', err);
-    showError('Failed to load more entries');
+    console.error('Load older error:', err);
+    showError('Failed to load older entries');
   } finally {
     state.loadMoreLoading = false;
     loadMoreBtn.disabled = false;
-    // Reset button text (renderLogs will update it on success)
-    loadMoreBtn.textContent = 'Load more';
   }
 });
 
