@@ -914,6 +914,15 @@
     color: var(--text-secondary);
     font-family: var(--font-mono); font-size: 12px;
   }
+  /* Pretty mode: 2-line clamped pretty-printed JSON inside the fixed 36px row. */
+  .payload-cell.pretty { align-items: flex-start; padding: 2px 0; }
+  .payload-cell.pretty .msg {
+    display: -webkit-box; -webkit-line-clamp: 2; overflow: hidden;
+    white-space: pre-wrap; word-break: break-all;
+    text-overflow: ellipsis;
+    font-size: 11px; line-height: 1.4;
+    color: var(--text-secondary);
+  }
 
   .log-file { font-size: 12px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .log-file a {
@@ -1094,6 +1103,10 @@
       <button type="button" class="toggle" id="autoScrollToggle" role="switch" aria-checked="true" title="Auto-scroll to new entries">
         <span class="toggle-track active" id="scrollTrack" aria-hidden="true"><span class="toggle-knob"></span></span>
         <span class="toggle-label">Scroll</span>
+      </button>
+      <button type="button" class="toggle" id="prettyToggle" role="switch" aria-checked="false" title="Toggle pretty-printed JSON payload">
+        <span class="toggle-track" id="prettyTrack" aria-hidden="true"><span class="toggle-knob"></span></span>
+        <span class="toggle-label">Pretty</span>
       </button>
       <button class="btn-icon" id="clearBtn" title="Clear displayed logs" aria-label="Clear displayed logs">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
@@ -1319,6 +1332,8 @@ const state = {
   renderQueued: false,
   initDone: false,
   filtered: false,          // true while a server-side search q is active
+  sseAdded: new Set(),         // SSE-inserted ids not yet reflected in server total
+  prettyPayload: false,        // when true, payload cells show pretty-printed JSON
 };
 
 // DOM refs
@@ -1364,6 +1379,8 @@ const bulkDeleteBtn = $('bulkDeleteBtn');
 const bulkCopyCsvBtn = $('bulkCopyCsvBtn');
 const bulkCopyJsonBtn = $('bulkCopyJsonBtn');
 const bulkClearBtn = $('bulkClearBtn');
+const prettyToggle = $('prettyToggle');
+const prettyTrack = $('prettyTrack');
 
 // ── Virtualization constants ─────────────────────────────
 const ROW_H = 36;          // desktop fixed row height (px)
@@ -1429,6 +1446,41 @@ function payloadPreview(msg) {
   if (Array.isArray(msg)) return `[${msg.length} items] ${compact}`;
   if (typeof msg === 'object') return `{${Object.keys(msg).length} keys} ${compact}`;
   return String(msg);
+}
+
+// Pretty-printed JSON string for pretty mode (2-line clamped in CSS).
+function payloadPretty(msg) {
+  if (msg === null || msg === undefined) return 'null';
+  if (typeof msg === 'string') return JSON.stringify(msg);
+  if (typeof msg === 'number' || typeof msg === 'boolean') return String(msg);
+  try { return JSON.stringify(msg, null, 2); }
+  catch { return JSON.stringify(msg); }
+}
+
+// Re-render only the payload cells of currently visible rows when Pretty is toggled.
+// Does NOT re-fetch or rebuild spacers — just updates the .msg span text and class.
+function refreshPayloadCells() {
+  const rows = logBody.querySelectorAll('tr[data-id]');
+  rows.forEach(tr => {
+    const id = Number(tr.dataset.id);
+    const log = state.cache.get(id);
+    if (!log) return;
+    const cell = tr.querySelector('.payload-cell');
+    if (!cell) return;
+    cell.classList.toggle('pretty', state.prettyPayload);
+    const msg = cell.querySelector('.msg');
+    if (msg) {
+      if (state.prettyPayload) {
+        const pretty = payloadPretty(log.payload);
+        msg.textContent = pretty;
+        msg.title = pretty;
+      } else {
+        const preview = payloadPreview(log.payload);
+        msg.textContent = preview;
+        msg.title = preview.replace(/"/g, '&quot;').replace(/</g, '&lt;');
+      }
+    }
+  });
 }
 
 function escapeHtml(s) {
@@ -1555,9 +1607,10 @@ function makeRow(slot, id) {
   const tdMsg = document.createElement('td');
   tdMsg.className = 'col-message';
   if (log) {
-    const preview = payloadPreview(log.payload);
+    const isPretty = state.prettyPayload;
+    const preview = isPretty ? payloadPretty(log.payload) : payloadPreview(log.payload);
     const title = preview.replace(/"/g, '&quot;').replace(/</g, '&lt;');
-    tdMsg.innerHTML = '<div class="payload-cell">' +
+    tdMsg.innerHTML = '<div class="payload-cell' + (isPretty ? ' pretty' : '') + '">' +
       getTypeBadge(log.payload) +
       '<span class="msg" title="' + title + '">' + escapeHtml(preview) + '</span></div>';
   }
@@ -1634,7 +1687,7 @@ function renderWindow() {
 }
 
 function renderEmptyOrTable() {
-  if (state.total <= 0) {
+  if (state.rangeIndex.totalSlots() <= 0) {
     emptyState.style.display = 'flex';
     logTable.style.display = 'none';
   } else {
@@ -1724,10 +1777,15 @@ function requestFetchForSlots(slots) {
   }
 }
 
+// Track an empty edge fetch so it doesn't loop endlessly.
+let edgeEmptyFetchKey = null;
+
 async function fetchPage(key, anchor, dir) {
   let url;
   const q = state.q ? '&q=' + encodeURIComponent(state.q) : '';
   if (dir === 'edge' || anchor === null) {
+    // Guard: skip if the last edge fetch returned 0 items (space legitimately empty).
+    if (edgeEmptyFetchKey === key) return;
     url = '/logs?limit=' + PAGE + q;
   } else if (dir === 'below') {
     url = '/logs?limit=' + PAGE + '&before_id=' + anchor + q;
@@ -1737,13 +1795,17 @@ async function fetchPage(key, anchor, dir) {
   const res = await fetch(url, { headers: authHeaders() });
   if (!res.ok) throw new Error('Failed to load logs (' + res.status + ')');
   const data = await res.json();
-  for (const it of (data.items || [])) state.cache.set(it.id, it);
+  const items = data.items || [];
+  for (const it of items) state.cache.set(it.id, it);
   // A fetched page may expose a lower floor than we previously knew.
-  for (const it of (data.items || [])) {
+  for (const it of items) {
     if (state.rangeIndex.baseId === null || it.id < state.rangeIndex.baseId) {
       state.rangeIndex.baseId = it.id;
     }
   }
+  // Record empty edge result so we don't refetch the same empty page.
+  if ((dir === 'edge' || anchor === null) && items.length === 0) edgeEmptyFetchKey = key;
+  else if (items.length > 0) edgeEmptyFetchKey = null;
   queueRender();
 }
 
@@ -1771,8 +1833,10 @@ async function loadHistory() {
     });
     if (!res.ok) throw new Error('Failed to load history (' + res.status + ')');
     const data = await res.json();
-    state.total = data.total;
-    state.rangeIndex.total = data.total;
+    // Add SSE-inserted rows not yet reflected in the server total.
+    const sseDelta = state.sseAdded.size;
+    state.total = data.total + sseDelta;
+    state.rangeIndex.total = data.total + sseDelta;
 
     // Establish the floor (baseId): the oldest id. A filtered (q) view reports
     // its own min/max within the filtered set, so the same call still gives a
@@ -1796,10 +1860,12 @@ async function loadHistory() {
     if (probe.ok) {
       const pd = await probe.json();
       const floorId = pd.items && pd.items.length ? pd.items[0].id : minId;
-      state.rangeIndex.initSpace(floorId || (minId ? minId : 1), data.total);
+      state.rangeIndex.initSpace(floorId || (minId ? minId : 1), data.total + sseDelta);
     } else {
-      state.rangeIndex.initSpace(minId || 1, data.total);
+      state.rangeIndex.initSpace(minId || 1, data.total + sseDelta);
     }
+    // SSE ids are now folded into the server total; clear the set.
+    state.sseAdded.clear();
 
     state.initDone = true;
     state.stickToBottom = true;
@@ -1819,6 +1885,7 @@ function addLogEntry(log) {
   state.cache.set(id, log);
   state.total++;
   state.rangeIndex.total++;
+  state.sseAdded.add(id);
 
   if (state.filtered) {
     // Server-side search: re-resolve the filtered space (ids may not be
@@ -1846,6 +1913,7 @@ function removeLogEntry(id) {
   state.deletedIds.add(id);
   state.total = Math.max(0, state.total - 1);
   state.rangeIndex.removeId(id);
+  state.sseAdded.delete(id);
   state.cache.delete(id);
   deselectId(id);
   queueRender();
@@ -1914,6 +1982,15 @@ jumpPill.addEventListener('click', () => {
 });
 
 // Auto-scroll toggle (master switch): when ON, pin to bottom immediately.
+// Pretty toggle: switches payload cells between compact one-line and 2-line clamped pretty JSON.
+prettyTrack.addEventListener('click', (e) => {
+  e.stopPropagation();
+  state.prettyPayload = !state.prettyPayload;
+  prettyTrack.classList.toggle('active', state.prettyPayload);
+  document.getElementById('prettyToggle').setAttribute('aria-checked', String(state.prettyPayload));
+  refreshPayloadCells();
+});
+
 scrollTrack.addEventListener('click', (e) => {
   e.stopPropagation();
   state.autoScroll = !state.autoScroll;
@@ -2233,11 +2310,19 @@ async function connectSSE() {
         const rr = await fetch('/logs?limit=1', { headers: authHeaders() });
         if (rr.ok) {
           const d = await rr.json();
-          state.total = d.total;
-          state.rangeIndex.total = d.total;
+          const sseDelta = state.sseAdded.size;
+          state.total = d.total + sseDelta;
+          state.rangeIndex.total = d.total + sseDelta;
+          state.sseAdded.clear();
           queueRender();
         }
       } catch {}
+    }
+
+    // If the view is empty (first connect, or 0-row fresh DB), populate now.
+    if (state.rangeIndex.totalSlots() === 0 && state.total === 0 && !state.filtered) {
+      await loadHistory();
+      queueRender();
     }
 
     const reader = response.body.getReader();
@@ -2264,10 +2349,17 @@ async function connectSSE() {
     }
   } catch (err) {
     if (err.name === 'AbortError') return;
-    showError('Connection lost: ' + err.message);
+    state.connecting = false;
+    setStatus('disconnected');
+    connectBtn.textContent = 'Reconnect';
+    connectBtn.disabled = false;
+    const msg = err.message === 'Invalid API key' ? 'Invalid API key — check your key and reconnect' : 'Connection lost: ' + err.message;
+    showError(msg);
   } finally {
     if (state.connected) { state.connected = false; state.connecting = false; setStatus('disconnected'); connectBtn.textContent = 'Reconnect'; connectBtn.disabled = false; }
-    setTimeout(() => { if (!state.connected && state.apiKey && !state.intentionalDisconnect) connectSSE(); }, 3000);
+    if (!state.connecting && !state.connected && state.apiKey && !state.intentionalDisconnect) {
+      setTimeout(() => { if (!state.connected && state.apiKey && !state.intentionalDisconnect) connectSSE(); }, 3000);
+    }
   }
 }
 
@@ -2304,6 +2396,8 @@ function resetSpaceForSearch() {
   activeFetches = 0;
   state.total = 0;
   state.deletedIds = new Set();
+  state.sseAdded.clear();
+  edgeEmptyFetchKey = null;
   clearSelection();
   state.stickToBottom = true;
   state.pendingCount = 0;
