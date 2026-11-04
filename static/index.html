@@ -1652,7 +1652,11 @@ function makeLoadingRow(slot) {
 function renderWindow() {
   state.renderQueued = false;
   const totalSlots = state.rangeIndex.totalSlots();
-  if (totalSlots <= 0) { renderEmptyOrTable(); return; }
+  // Show table / hide empty-state based on the live total, on BOTH branches —
+  // otherwise a re-render with data leaves logTable stuck at its inline
+  // display:none (only the empty branch used to toggle it).
+  renderEmptyOrTable();
+  if (totalSlots <= 0) return;
 
   const rowH = currentRowH();
   const top = logContainer.scrollTop;
@@ -1699,7 +1703,17 @@ function renderEmptyOrTable() {
 function queueRender() {
   if (state.renderQueued) return;
   state.renderQueued = true;
-  requestAnimationFrame(renderWindow);
+  requestAnimationFrame(renderWindowSafe);
+}
+// Guard: if a render frame throws mid-body, surface it and re-queue so the
+// panel can't freeze on a half-built logBody.
+function renderWindowSafe() {
+  try {
+    renderWindow();
+  } catch (err) {
+    console.error('Render failed:', err);
+    showError('Render failed - refresh to recover');
+  }
 }
 
 function updateCounts() {
