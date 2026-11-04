@@ -13,7 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.staticfiles import StaticFiles
 from starlette.datastructures import UploadFile as StarletteUploadFile
-from fastapi.responses import JSONResponse, HTMLResponse
+from fastapi.responses import JSONResponse, HTMLResponse, StreamingResponse
 from sse_starlette.sse import EventSourceResponse
 from pydantic import BaseModel, Field
 
@@ -90,7 +90,23 @@ class DeleteResult(BaseModel):
     id: int = Field(..., description="ID of the deleted log entry")
 
 
-# ── Helper ──────────────────────────────────────────────────────────────────
+class BulkDeleteRequest(BaseModel):
+    """Request body for deleting multiple log entries at once."""
+
+    ids: list[int] = Field(
+        ...,
+        min_length=1,
+        description="IDs of the log entries to delete (at least one required)",
+    )
+
+
+class BulkDeleteResult(BaseModel):
+    """Result of a bulk log deletion operation."""
+
+    deleted: int = Field(..., description="Number of log entries actually deleted")
+    ids: list[int] = Field(
+        ..., description="IDs of the log entries that were actually deleted"
+    )
 
 
 def _parse_stored_payload(stored: str):
@@ -100,6 +116,27 @@ def _parse_stored_payload(stored: str):
         return json.loads(stored)
     except (json.JSONDecodeError, TypeError):
         return stored
+
+
+def _search_clause(q: Optional[str]) -> tuple[Optional[str], list[Any]]:
+    """SQL fragment for the shared case-insensitive substring search.
+
+    Matches against the payload text, IP address, and timestamp. Returns the
+    clause (without the WHERE keyword) and its bound parameters, or
+    ``(None, [])`` when no search is requested.
+    """
+    if not q:
+        return None, []
+    pattern = f"%{q.lower()}%"
+    clause = "(LOWER(payload) LIKE ? OR LOWER(ip_address) LIKE ? OR LOWER(timestamp) LIKE ?)"
+    return clause, [pattern, pattern, pattern]
+
+
+def _csv_field(value: str) -> str:
+    """Escape one CSV field per RFC 4180 (quote if it contains comma, quote, CR, or LF)."""
+    if any(ch in value for ch in (',', '"', '\n', '\r')):
+        return '"' + value.replace('"', '""') + '"'
+    return value
 
 
 # ── App Setup ──────────────────────────────────────────────────────────────
@@ -588,7 +625,7 @@ async def stream_logs():
     dependencies=[Depends(verify_auth)],
     response_model=LogListResponse,
     summary="Retrieve historical log entries",
-    description="""Returns a paginated list of historical log entries, **newest first**.
+    description="""Returns a paginated list of historical log entries, **newest first** by default.
 
 ## Pagination
 
@@ -603,6 +640,23 @@ Use `limit` and `offset` for cursor-style paging:
 - `offset` — number of entries to skip (default 0)
 - The response includes `total`, the overall count, so you know when to stop
   paging
+
+### ID-anchored paging (for virtualized / infinite-scroll tables)
+
+| Param | Behavior |
+|-------|----------|
+| `before_id` | Entries with `id < before_id`, **newest first** |
+| `after_id` | Entries with `id > after_id`, **oldest first** (ascending, so the client can page forward in time) |
+
+- `before_id` and `after_id` combine with AND (`id < before_id AND id > after_id`).
+  When both are given, rows come back newest first (like `before_id` alone)
+- `offset` still applies after the ID filter, if also given
+
+## Search
+
+Pass `q` for a case-insensitive substring filter applied to the payload text,
+IP address, and timestamp. When `q` is present, `total` is the **filtered**
+count; otherwise it is the overall count.
     """,
     tags=["Logs"],
     responses={
@@ -625,17 +679,58 @@ async def get_logs(
         ge=0,
         description="Number of entries to skip for pagination",
     ),
+    before_id: Optional[int] = Query(
+        default=None,
+        description="Return entries with id < before_id, newest first",
+    ),
+    after_id: Optional[int] = Query(
+        default=None,
+        description=(
+            "Return entries with id > after_id, ordered oldest first (ascending), "
+            "so the client can page forward in time"
+        ),
+    ),
+    q: Optional[str] = Query(
+        default=None,
+        description=(
+            "Case-insensitive substring filter on payload text, IP address, and "
+            "timestamp. When set, `total` is the filtered count"
+        ),
+    ),
 ):
     db = await aiosqlite.connect(str(DB_PATH))
     db.row_factory = aiosqlite.Row
 
-    cursor = await db.execute("SELECT COUNT(*) as total FROM logs")
+    clauses: list[str] = []
+    params: list[Any] = []
+
+    if before_id is not None:
+        clauses.append("id < ?")
+        params.append(before_id)
+    if after_id is not None:
+        clauses.append("id > ?")
+        params.append(after_id)
+
+    search_clause, search_params = _search_clause(q)
+    if search_clause:
+        clauses.append(search_clause)
+        params.extend(search_params)
+
+    where_sql = f" WHERE {' AND '.join(clauses)}" if clauses else ""
+    # Default is newest first; a pure after_id cursor pages forward in time.
+    order_sql = "ASC" if after_id is not None and before_id is None else "DESC"
+
+    # When a search filter is active, `total` reflects the filtered count.
+    if search_clause:
+        cursor = await db.execute(f"SELECT COUNT(*) as total FROM logs{where_sql}", params)
+    else:
+        cursor = await db.execute("SELECT COUNT(*) as total FROM logs")
     row = await cursor.fetchone()
     total = row["total"] if row else 0
 
     cursor = await db.execute(
-        "SELECT id, timestamp, ip_address, payload, filename FROM logs ORDER BY id DESC LIMIT ? OFFSET ?",
-        (limit, offset),
+        f"SELECT id, timestamp, ip_address, payload, filename FROM logs{where_sql} ORDER BY id {order_sql} LIMIT ? OFFSET ?",
+        [*params, limit, offset],
     )
     rows = await cursor.fetchall()
     await db.close()
@@ -706,6 +801,85 @@ async def export_logs():
         export_date=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         total=len(items),
         items=items,
+    )
+
+
+@app.get(
+    "/logs/export.csv",
+    dependencies=[Depends(verify_auth)],
+    summary="Export log entries as CSV",
+    description="""Streams log entries as an RFC 4180 CSV download, **oldest first**.
+
+## Columns
+
+`id,timestamp,ip_address,payload,filename`
+
+- `payload` is the raw stored JSON string (not re-serialized)
+- `filename` is empty when the entry has no attached upload
+- Fields containing commas, quotes, newlines, or carriage returns are wrapped
+  in double quotes with internal quotes doubled (RFC 4180)
+
+Pass `q` for the same case-insensitive substring search as `GET /logs`.
+
+## Example
+
+```bash
+curl http://localhost:8000/logs/export.csv \\
+  -H "Authorization: Bearer your-secret-key" \\
+  -o hookview-export.csv
+```
+    """,
+    tags=["Logs"],
+    responses={
+        200: {"description": "CSV export of log entries (text/csv; charset=utf-8)"},
+        403: {
+            "model": ErrorResponse,
+            "description": "Invalid or missing Bearer API key",
+        },
+    },
+)
+async def export_logs_csv(
+    q: Optional[str] = Query(
+        default=None,
+        description="Case-insensitive substring filter on payload text, IP address, and timestamp",
+    ),
+):
+    export_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    search_clause, params = _search_clause(q)
+    where_sql = f" WHERE {search_clause}" if search_clause else ""
+
+    async def csv_rows():
+        db = await aiosqlite.connect(str(DB_PATH))
+        try:
+            db.row_factory = aiosqlite.Row
+            cursor = await db.execute(
+                f"SELECT id, timestamp, ip_address, payload, filename FROM logs{where_sql} ORDER BY id ASC",
+                params,
+            )
+            yield "id,timestamp,ip_address,payload,filename\n"
+            while True:
+                rows = await cursor.fetchmany(1000)
+                if not rows:
+                    break
+                for row in rows:
+                    yield ",".join(
+                        (
+                            _csv_field(str(row["id"])),
+                            _csv_field(row["timestamp"]),
+                            _csv_field(row["ip_address"]),
+                            _csv_field(row["payload"]),
+                            _csv_field(row["filename"] or ""),
+                        )
+                    ) + "\n"
+        finally:
+            await db.close()
+
+    return StreamingResponse(
+        csv_rows(),
+        media_type="text/csv; charset=utf-8",
+        headers={
+            "Content-Disposition": f'attachment; filename="hookview-export-{export_date}.csv"'
+        },
     )
 
 
@@ -949,6 +1123,76 @@ async def delete_log(log_id: int):
 
     await broadcast("delete", {"id": log_id})
     return DeleteResult(deleted=True, id=log_id)
+
+
+@app.post(
+    "/logs/delete-bulk",
+    dependencies=[Depends(verify_auth)],
+    response_model=BulkDeleteResult,
+    summary="Delete multiple log entries",
+    description="""Deletes multiple log entries in one transaction. IDs that do not exist
+are silently skipped — `deleted` counts only actual deletions. Uploaded files
+linked to deleted entries are removed from `uploads/` as well, and a `delete`
+SSE event is broadcast once per deleted id (same as the single-entry delete),
+so existing dashboard handlers keep working.
+
+## Example
+
+```bash
+curl -X POST http://localhost:8000/logs/delete-bulk \\
+  -H "Authorization: Bearer your-secret-key" \\
+  -H "Content-Type: application/json" \\
+  -d '{"ids": [1, 2, 3]}'
+```
+
+Returns `200` with `{"deleted": 3, "ids": [1, 2, 3]}`.
+    """,
+    tags=["Logs"],
+    responses={
+        200: {"description": "Matching log entries deleted"},
+        403: {
+            "model": ErrorResponse,
+            "description": "Invalid or missing Bearer API key",
+        },
+    },
+)
+async def delete_logs_bulk(request: BulkDeleteRequest):
+    # Dedupe while preserving order: duplicates must not delete twice or
+    # broadcast two SSE events for the same id.
+    ids = list(dict.fromkeys(request.ids))
+
+    db = await aiosqlite.connect(str(DB_PATH))
+    db.row_factory = aiosqlite.Row
+
+    placeholders = ", ".join("?" for _ in ids)
+    cursor = await db.execute(
+        f"SELECT id, filename FROM logs WHERE id IN ({placeholders})", ids
+    )
+    rows = await cursor.fetchall()
+    filenames = {row["id"]: row["filename"] for row in rows}
+
+    await db.execute(f"DELETE FROM logs WHERE id IN ({placeholders})", ids)
+    await db.commit()
+    await db.close()
+
+    deleted_ids = [log_id for log_id in ids if log_id in filenames]
+
+    # Remove associated uploaded files, if any (best effort — the log rows are
+    # already deleted, so a locked file must not fail the request)
+    for log_id in deleted_ids:
+        filename = filenames[log_id]
+        if filename:
+            file_path = UPLOAD_DIR / filename
+            try:
+                if file_path.exists():
+                    file_path.unlink()
+            except OSError:
+                pass
+
+    for log_id in deleted_ids:
+        await broadcast("delete", {"id": log_id})
+
+    return BulkDeleteResult(deleted=len(deleted_ids), ids=deleted_ids)
 
 
 # ── Frontend ───────────────────────────────────────────────────────────────

@@ -3,15 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="theme-color" content="#050608" id="themeColorMeta">
+<meta name="theme-color" content="#F7F6F3" id="themeColorMeta">
 <title>HookView</title>
 <script>
   // Resolve the theme before first paint so a saved theme never flashes the
-  // wrong one. Dark is the app's default; only an explicit toggle persists.
+  // wrong one. Light is the app's default; only an explicit toggle persists.
   (function () {
     var t = null;
     try { t = localStorage.getItem('hookview_theme'); } catch (e) { /* private mode */ }
-    document.documentElement.dataset.theme = (t === 'light' || t === 'dark') ? t : 'dark';
+    document.documentElement.dataset.theme = (t === 'light' || t === 'dark') ? t : 'light';
   })();
 </script>
 <style>
@@ -23,250 +23,255 @@
      --ink channel at some alpha, so flipping --ink inverts the whole UI
      without touching individual rules. Accent + semantic colors are declared
      per theme because a hue that reads on black rarely reads on white. */
-  :root {
+  /* Dark theme (explicit toggle). Near-black paper, bone-on-dark primary,
+     desaturated pastel semantic tints for status/badges only. */
+  :root[data-theme="dark"] {
     color-scheme: dark;
 
-    /* --ink drives every translucent surface, border and hairline below. */
-    --ink: 255 255 255;
+    /* Flat paper surface — one canvas, one surface, hard 1px rules. */
+    --bg-primary: #0F0F0F;
+    --bg-secondary: #141414;
+    --bg-card: #161616;
+    --bg-hover: #1d1d1d;
+    --border: rgba(255,255,255,0.10);
+    --border-light: rgba(255,255,255,0.18);
+    --text-primary: #F2F1EF;
+    --text-secondary: #9A9895;
+    --text-muted: #787774;
 
-    /* OLED neutrals (true near-black, cool-tinted) */
-    --bg-primary: #050608;
-    --bg-secondary: #0a0c10;
-    --bg-card: #11141b;
-    --bg-hover: #1a1f2b;
-    --border: rgb(var(--ink) / 0.08);
-    --border-light: rgb(var(--ink) / 0.16);
-    --text-primary: #e6ebf2;
-    --text-secondary: #a7b0bd;
-    --text-muted: #8a94a3;
-    --accent: #22d3ee;
-    --accent-dim: #0e94ae;
-    --accent-soft: rgba(34,211,238,0.14);
-    --accent-glow: rgba(34,211,238,0.30);
-    --on-accent: #04121a;
-    --green: #34d399;
-    --amber: #fbbf24;
-    --blue: #60a5fa;
-    --purple: #a78bfa;
-    --red: #f87171;
-    --status-connected: #34d399;
-    --status-disconnected: #f87171;
-    --status-connecting: #fbbf24;
+    /* Primary action = bone on dark; inverted = charcoal on light. */
+    --accent: #F2F1EF;
+    --accent-dim: #F2F1EF;
+    --accent-soft: rgba(242,241,239,0.10);
+    --on-accent: #111111;
 
-    /* Log-level semantic tokens (text/glyph tints, all ≥ 4.5:1 on --bg-card) */
-    --level-info: #60a5fa;
-    --level-ok: #34d399;
-    --level-warn: #fbbf24;
-    --level-error: #f87171;
-    /* Panels, insets, overlays */
-    --panel: rgba(6,7,10,0.55);
-    --panel-head: rgba(10,12,16,0.94);
-    --inset: rgba(0,0,0,0.35);
-    --edge: rgba(0,0,0,0.35);
-    --scrim: rgba(2,3,5,0.62);
-    --syntax-key: #93c5fd;
-    --mesh-1: rgba(34,211,238,0.09);
-    --mesh-2: rgba(96,165,250,0.06);
-    --mesh-a: rgba(34,211,238,0.055);
-    --mesh-b: rgba(96,165,250,0.045);
+    /* Pastel semantic tints (desaturated) for status dots / level badges. */
+    --green: #EDF3EC;
+    --green-ink: #346538;
+    --amber: #FBF3DB;
+    --amber-ink: #956400;
+    --blue: #E1F3FE;
+    --blue-ink: #1F6C9F;
+    --purple: #ECEAF8;
+    --purple-ink: #4B4B7A;
+    --red: #FDEBEC;
+    --red-ink: #9F2F2D;
+    --status-connected: #346538;
+    --status-disconnected: #9F2F2D;
+    --status-connecting: #956400;
 
-    /* Radius scale (concentric-friendly) */
-    --radius: 14px;
-    --radius-sm: 9px;
-    --radius-xs: 6px;
+    --level-info: var(--blue-ink);
+    --level-ok: var(--green-ink);
+    --level-warn: var(--amber-ink);
+    --level-error: var(--red-ink);
 
-    /* Glass surfaces + hairlines */
-    --glass: rgba(13,16,22,0.72);
-    --glass-strong: rgba(9,11,15,0.86);
-    --shell: rgb(var(--ink) / 0.016);
-    --inner-hi: inset 0 1px 0 rgb(var(--ink) / 0.06);
+    /* Flat panels/insets: solid, no translucency, no glass. */
+    --panel: #161616;
+    --panel-head: #141414;
+    --inset: #101010;
+    --edge: #000000;
+    --scrim: rgba(0,0,0,0.55);
+    --syntax-key: #F2F1EF;
 
-    --shadow: 0 18px 48px rgba(0,0,0,0.5);
-    --shadow-soft: 0 6px 22px rgba(0,0,0,0.35);
-    --shadow-knob: 0 1px 3px rgba(0,0,0,0.5);
-    --shadow-drawer: -18px 0 56px rgba(0,0,0,0.6);
+    /* Sharp corners: containers 0; tags/badges stay pill; primary btn 4px. */
+    --radius: 0px;
+    --radius-sm: 0px;
+    --radius-xs: 0px;
+    --radius-btn: 4px;
+
+    /* No depth shadows: at most a whisper lift on hover. */
+    --lift: 0 2px 8px rgba(0,0,0,0.04);
+    --shadow-none: none;
 
     --font-mono: 'SF Mono', 'Fira Code', 'Cascadia Code', 'JetBrains Mono', 'Consolas', monospace;
     --font-sans: ui-sans-serif, "SF Pro Display", -apple-system, "Segoe UI Variable", "Segoe UI", system-ui, "Helvetica Neue", sans-serif;
 
-    /* Custom easing - all interactive chrome uses these, never linear/ease-in-out */
+    /* Compat: legacy depth/glass tokens resolve to flat, hairline values. */
+    --ink: 242 241 239;
+    --glass: #161616;
+    --glass-strong: #161616;
+    --shell: #141414;
+    --inner-hi: none;
+    --mesh-1: transparent;
+    --mesh-2: transparent;
+    --mesh-a: transparent;
+    --mesh-b: transparent;
+    --accent-glow: rgba(242,241,239,0.05);
+    --shadow: var(--lift);
+    --shadow-soft: var(--lift);
+    --shadow-knob: var(--lift);
+    --shadow-drawer: none;
     --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
     --ease-spring: cubic-bezier(0.32, 0.72, 0, 1);
-    --dur: 0.22s;
+    --dur: 0.15s;
   }
 
-  /* ── Light theme ─────────────────────────────────────────── */
-  :root[data-theme="light"] {
+  /* ── Light theme (default) ──────────────────────────────── */
+  :root {
     color-scheme: light;
-    --ink: 15 23 42;                 /* slate-900 ink on white surfaces */
 
-    --bg-primary: #f5f7fa;
-    --bg-secondary: #eef2f7;
-    --bg-card: #ffffff;
-    --bg-hover: #e8edf4;
-    --border: rgba(15,23,42,0.10);
-    --border-light: rgba(15,23,42,0.18);
-    --text-primary: #0f172a;
-    --text-secondary: #475569;
-    --text-muted: #64748b;
-    --accent: #0891b2;               /* cyan-600: readable as text on white */
-    --accent-dim: #0e7490;
-    --accent-soft: rgba(8,145,178,0.10);
-    --accent-glow: rgba(8,145,178,0.22);
-    --on-accent: #ffffff;
-    --green: #047857;
-    --amber: #b45309;
-    --blue: #1d4ed8;
-    --purple: #6d28d9;
-    --red: #dc2626;
-    --status-connected: #059669;
-    --status-disconnected: #dc2626;
-    --status-connecting: #b45309;
+    --bg-primary: #F7F6F3;
+    --bg-secondary: #EFEDE9;
+    --bg-card: #FFFFFF;
+    --bg-hover: #F0EFEB;
+    --border: rgba(0,0,0,0.06);
+    --border-light: #EAEAEA;
+    --text-primary: #111111;
+    --text-secondary: #787774;
+    --text-muted: #9A9895;
 
-    /* Log-level semantic tokens (darker variants for light surfaces, ≥ 4.5:1 on #fff) */
-    --level-info: #1d4ed8;
-    --level-ok: #047857;
-    --level-warn: #b45309;
-    --level-error: #dc2626;
+    --accent: #111111;
+    --accent-dim: #111111;
+    --accent-soft: rgba(17,17,17,0.06);
+    --on-accent: #FFFFFF;
 
-    --panel: #ffffff;
-    --panel-head: rgba(248,250,252,0.96);
-    --inset: rgba(15,23,42,0.04);
-    --edge: rgba(15,23,42,0.06);
-    --scrim: rgba(15,23,42,0.35);
-    --syntax-key: #1d4ed8;
-    --mesh-1: rgba(8,145,178,0.06);
-    --mesh-2: rgba(37,99,235,0.05);
-    --mesh-a: rgba(8,145,178,0.05);
-    --mesh-b: rgba(37,99,235,0.04);
+    --green: #EDF3EC;
+    --green-ink: #346538;
+    --amber: #FBF3DB;
+    --amber-ink: #956400;
+    --blue: #E1F3FE;
+    --blue-ink: #1F6C9F;
+    --purple: #ECEAF8;
+    --purple-ink: #4B4B7A;
+    --red: #FDEBEC;
+    --red-ink: #9F2F2D;
+    --status-connected: #346538;
+    --status-disconnected: #9F2F2D;
+    --status-connecting: #956400;
 
-    --glass: rgba(255,255,255,0.78);
-    --glass-strong: rgba(255,255,255,0.92);
-    --inner-hi: inset 0 1px 0 rgba(255,255,255,0.9);
+    --level-info: var(--blue-ink);
+    --level-ok: var(--green-ink);
+    --level-warn: var(--amber-ink);
+    --level-error: var(--red-ink);
 
-    --shadow: 0 18px 48px rgba(15,23,42,0.12);
-    --shadow-soft: 0 6px 22px rgba(15,23,42,0.08);
-    --shadow-knob: 0 1px 3px rgba(15,23,42,0.28);
-    --shadow-drawer: -18px 0 56px rgba(15,23,42,0.18);
+    --panel: #FFFFFF;
+    --panel-head: #F7F6F3;
+    --inset: #F0EFEB;
+    --edge: #EAEAEA;
+    --scrim: rgba(17,17,17,0.35);
+    --syntax-key: #111111;
+
+    --radius: 0px;
+    --radius-sm: 0px;
+    --radius-xs: 0px;
+    --radius-btn: 4px;
+
+    --lift: 0 2px 8px rgba(0,0,0,0.04);
+    --shadow-none: none;
+
+    /* Compat: legacy depth/glass tokens resolve to flat, hairline values so
+       any rule still referencing them renders as plain paper, not bezels. */
+    --ink: 17 17 17;
+    --glass: #FFFFFF;
+    --glass-strong: #FFFFFF;
+    --shell: #F0EFEB;
+    --inner-hi: none;
+    --mesh-1: transparent;
+    --mesh-2: transparent;
+    --mesh-a: transparent;
+    --mesh-b: transparent;
+    --accent-glow: rgba(17,17,17,0.04);
+    --shadow: var(--lift);
+    --shadow-soft: var(--lift);
+    --shadow-knob: var(--lift);
+    --shadow-drawer: none;
+
+    --font-mono: 'SF Mono', 'Fira Code', 'Cascadia Code', 'JetBrains Mono', 'Consolas', monospace;
+    --font-sans: ui-sans-serif, "SF Pro Display", -apple-system, "Segoe UI Variable", "Segoe UI", system-ui, "Helvetica Neue", sans-serif;
+
+    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-spring: cubic-bezier(0.32, 0.72, 0, 1);
+    --dur: 0.15s;
   }
 
-  html { font-size: 14px; }
   body {
     font-family: var(--font-sans);
     background: var(--bg-primary);
     color: var(--text-primary);
     height: 100vh;
     overflow: hidden;
-    /* Subtle static radial mesh: cyan (primary accent) + a single cool secondary. */
-    background-image:
-      radial-gradient(58% 52% at 15% -8%, var(--mesh-1) 0%, transparent 62%),
-      radial-gradient(48% 46% at 100% 108%, var(--mesh-2) 0%, transparent 66%);
-    background-attachment: fixed;
   }
 
   ::selection { background: var(--accent-soft); color: var(--text-primary); }
 
   ::-webkit-scrollbar { width: 8px; height: 8px; }
   ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: rgb(var(--ink) / 0.10); border-radius: 999px; }
-  ::-webkit-scrollbar-thumb:hover { background: rgb(var(--ink) / 0.20); }
+  ::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 999px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
 
-  /* ── Ambient layers (fixed, decorative) ─────────────────── */
-  .bg-mesh {
-    position: fixed; inset: 0; z-index: 0;
-    pointer-events: none;
-    background-image:
-      radial-gradient(40% 34% at 82% 4%, var(--mesh-a) 0%, transparent 70%),
-      radial-gradient(46% 42% at -6% 52%, var(--mesh-b) 0%, transparent 72%);
-  }
-  .bg-grain {
-    position: fixed; inset: 0; z-index: 1;
-    pointer-events: none;
-    opacity: 0.025;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-  }
 
   /* ── Layout ──────────────────────────────────────────────── */
   .app { position: relative; z-index: 2; display: flex; flex-direction: column; height: 100vh; }
   .main-area { display: flex; flex: 1; overflow: hidden; min-height: 0; }
   .log-column { display: flex; flex-direction: column; flex: 1; min-width: 0; }
 
-  /* ── Header (glass chrome) ───────────────────────────────── */
+  /* ── Header: flat paper band ─────────────────────────────── */
   .header {
     height: 58px;
     display: flex; align-items: center; justify-content: space-between;
     padding: 0 22px;
-    background: var(--glass);
-    backdrop-filter: blur(20px) saturate(150%);
-    -webkit-backdrop-filter: blur(20px) saturate(150%);
+    background: var(--bg-primary);
     border-bottom: 1px solid var(--border);
-    box-shadow: var(--inner-hi);
     flex-shrink: 0;
   }
   .header-left { display: flex; align-items: center; gap: 12px; }
   .logo {
     width: 30px; height: 30px;
-    background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dim) 100%);
-    border-radius: var(--radius-sm);
+    background: var(--accent);
+    border-radius: var(--radius-btn);
     display: flex; align-items: center; justify-content: center;
-    font-size: 13px; color: var(--on-accent);
+    font-size: 14px; color: var(--on-accent);
     font-weight: 700;
     font-family: var(--font-mono);
-    box-shadow: 0 0 0 1px rgba(34,211,238,0.35), 0 6px 18px rgba(34,211,238,0.22), var(--inner-hi);
-    letter-spacing: 0.02em;
   }
-  .title { font-size: 15px; font-weight: 600; letter-spacing: -0.012em; }
+  .title { font-size: 16px; font-weight: 700; letter-spacing: 0.01em; font-family: var(--font-sans); }
   .title-docs {
     font-size: 10px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase;
     color: var(--text-muted);
-    background: rgb(var(--ink) / 0.03); padding: 4px 9px;
-    border-radius: 999px; border: 1px solid var(--border);
+    background: var(--bg-card); padding: 4px 9px;
+    border-radius: var(--radius-xs); border: 1px solid var(--border);
     text-decoration: none;
     transition: color var(--dur) var(--ease-out), border-color var(--dur) var(--ease-out), background var(--dur) var(--ease-out);
   }
-  .title-docs:hover { border-color: rgba(34,211,238,0.45); color: var(--accent); background: var(--accent-soft); }
+  .title-docs:hover { border-color: var(--text-muted); color: var(--text-primary); background: var(--accent-soft); }
   .title-docs:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--bg-primary), 0 0 0 4px var(--accent); }
   .header-right { display: flex; align-items: center; gap: 12px; }
 
   .status {
     display: flex; align-items: center; gap: 7px;
-    font-size: 12px; font-weight: 500;
+    font-size: 11px; font-weight: 600;
+    letter-spacing: 0.08em; text-transform: uppercase;
     padding: 5px 13px;
-    border-radius: 999px;
+    border-radius: var(--radius-xs);
     border: 1px solid var(--border);
-    background: rgb(var(--ink) / 0.03);
-    box-shadow: var(--inner-hi);
+    background: var(--bg-card);
   }
   .status-dot {
-    width: 7px; height: 7px; border-radius: 50%;
-    transition: background var(--dur) var(--ease-out), box-shadow var(--dur) var(--ease-out);
+    width: 8px; height: 8px; border-radius: 50%;
+    transition: background var(--dur) var(--ease-out);
   }
-  .status-dot.connected { background: var(--status-connected); box-shadow: 0 0 0 3px rgba(52,211,153,0.16), 0 0 10px rgba(52,211,153,0.6); }
-  .status-dot.disconnected { background: var(--status-disconnected); box-shadow: 0 0 0 3px rgba(248,113,113,0.12); }
+  .status-dot.connected { background: var(--status-connected); }
+  .status-dot.disconnected { background: var(--status-disconnected); }
   .status-dot.connecting { background: var(--status-connecting); animation: pulse 1.1s var(--ease-spring) infinite; }
   .status-label { color: var(--text-secondary); font-size: 12px; }
 
   .count-badge {
-    font-size: 12px; font-weight: 600;
-    background: rgb(var(--ink) / 0.03); padding: 5px 12px;
-    border-radius: 999px; border: 1px solid var(--border);
+    font-size: 11px; font-weight: 600;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    background: var(--bg-card); padding: 5px 12px;
+    border-radius: var(--radius-xs); border: 1px solid var(--border);
     color: var(--text-secondary);
-    box-shadow: var(--inner-hi);
     font-variant-numeric: tabular-nums;
   }
-  .count-badge span { color: var(--accent); }
+  .count-badge span { color: var(--text-primary); }
 
   @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
 
-  /* ── Auth Bar + Toolbar: double-bezel shells ─────────────── */
-  .shell { flex-shrink: 0; padding: 9px 22px; }
+  /* ── Auth Bar + Toolbar: single flat paper band ────────── */
+  .shell { flex-shrink: 0; padding: 0 22px; border-bottom: 1px solid var(--border); }
   .shell-core {
     display: flex; align-items: center; gap: 9px;
-    padding: 9px 12px;
-    background: rgb(var(--ink) / 0.016);
-    border: 1px solid var(--border);
-    border-radius: calc(var(--radius) + 3px);
-    box-shadow: var(--inner-hi), 0 1px 0 var(--edge);
+    padding: 11px 0;
   }
   .shell-core.column { flex-direction: column; align-items: stretch; gap: 0; }
 
@@ -275,9 +280,9 @@
     color: var(--text-muted); white-space: nowrap;
   }
 
-  /* Text inputs share one glass treatment */
+  /* Text inputs share one flat paper treatment */
   .auth-input, .search-input, .json-editor {
-    background: rgb(var(--ink) / 0.03);
+    background: var(--bg-card);
     border: 1px solid var(--border);
     color: var(--text-primary);
     outline: none;
@@ -286,14 +291,12 @@
   .auth-input::placeholder, .search-input::placeholder, .json-editor::placeholder { color: var(--text-muted); }
   .auth-input:focus, .search-input:focus, .json-editor:focus {
     border-color: var(--accent);
-    background: rgba(34,211,238,0.04);
-    box-shadow: 0 0 0 3px rgba(34,211,238,0.16);
   }
 
   .auth-input {
     flex: 1; max-width: 320px;
     padding: 8px 13px;
-    border-radius: var(--radius-sm);
+    border-radius: var(--radius-btn);
     font-family: var(--font-mono);
     font-size: 13px;
   }
@@ -301,11 +304,9 @@
 
   .btn {
     padding: 8px 16px;
-    border: none; border-radius: var(--radius-sm);
+    border: 1px solid var(--border); border-radius: var(--radius-btn);
     font-size: 13px; font-weight: 600; letter-spacing: -0.005em;
-    cursor: pointer;
-    transition: transform var(--dur) var(--ease-out), box-shadow var(--dur) var(--ease-out),
-                background var(--dur) var(--ease-out), border-color var(--dur) var(--ease-out), color var(--dur) var(--ease-out), opacity var(--dur) var(--ease-out);
+    transition: transform var(--dur) var(--ease-out), background var(--dur) var(--ease-out), border-color var(--dur) var(--ease-out), color var(--dur) var(--ease-out), opacity var(--dur) var(--ease-out);
     font-family: var(--font-sans);
     white-space: nowrap;
   }
@@ -315,24 +316,24 @@
     box-shadow: 0 0 0 2px var(--bg-primary), 0 0 0 4px var(--accent);
   }
   .btn-primary {
-    background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dim) 100%);
+    background: var(--accent);
     color: var(--on-accent);
-    box-shadow: var(--inner-hi), 0 6px 18px rgba(34,211,238,0.20);
+    border: 1px solid var(--accent);
   }
-  .btn-primary:hover { box-shadow: var(--inner-hi), 0 8px 24px rgba(34,211,238,0.34); }
+  .btn-primary:hover { box-shadow: var(--lift); }
   .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; box-shadow: none; transform: none; }
-  .btn-secondary { background: rgb(var(--ink) / 0.035); color: var(--text-secondary); border: 1px solid var(--border); cursor: pointer; }
-  .btn-secondary:hover { background: rgb(var(--ink) / 0.07); border-color: var(--border-light); color: var(--text-primary); }
+  .btn-secondary { background: transparent; color: var(--text-primary); border: 1px solid var(--border); cursor: pointer; }
+  .btn-secondary:hover { background: var(--bg-card); border-color: var(--border-light); color: var(--text-primary); }
   .btn-secondary:disabled { opacity: 0.5; cursor: not-allowed; }
-  .btn-danger { background: rgba(248,113,113,0.15); color: var(--red); border: 1px solid rgba(248,113,113,0.25); cursor: pointer; }
-  .btn-danger:hover { background: rgba(248,113,113,0.25); }
+  .btn-danger { background: var(--red); color: var(--red-ink); border: 1px solid var(--red); cursor: pointer; }
+  .btn-danger:hover { background: color-mix(in srgb, var(--red) 80%, #000); }
   .btn-sm { padding: 7px 13px; font-size: 12px; }
   .btn-ico { width: 13px; height: 13px; fill: currentColor; margin-right: 6px; vertical-align: -2px; }
   .btn-ico:only-child { margin-right: 0; }
 
-  .error-msg { font-size: 12px; color: var(--red); display: none; }
+  .error-msg { font-size: 12px; color: var(--red-ink); display: none; }
   .error-msg.visible { display: block; }
-  .error-msg.success { color: var(--green); }
+  .error-msg.success { color: var(--green-ink); }
 
   /* ── Toolbar ────────────────────────────────────────────── */
   .search-box { flex: 1; max-width: 300px; position: relative; }
@@ -360,11 +361,11 @@
   }
   .toggle-track {
     width: 34px; height: 19px;
-    background: rgb(var(--ink) / 0.05);
+    background: var(--inset);
     border: 1px solid var(--border);
     border-radius: 999px;
     position: relative;
-    transition: background var(--dur) var(--ease-out), border-color var(--dur) var(--ease-out), box-shadow var(--dur) var(--ease-out);
+    transition: background var(--dur) var(--ease-out), border-color var(--dur) var(--ease-out);
     cursor: pointer;
     flex-shrink: 0;
   }
@@ -373,14 +374,14 @@
     box-shadow: 0 0 0 2px var(--bg-primary), 0 0 0 4px var(--accent);
   }
   .toggle:hover .toggle-track { border-color: var(--border-light); }
-  .toggle-track.active { background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dim) 100%); border-color: transparent; box-shadow: 0 4px 14px var(--accent-glow), var(--inner-hi); }
+  .toggle-track.active { background: var(--accent); border-color: var(--accent); }
   .toggle-knob {
     width: 13px; height: 13px;
     background: var(--text-primary);
     border-radius: 50%;
     position: absolute; top: 2px; left: 2px;
     transition: transform var(--dur) var(--ease-spring);
-    box-shadow: var(--shadow-knob);
+    box-shadow: var(--shadow-none);
   }
   .toggle-track.active .toggle-knob { transform: translateX(15px); background: var(--on-accent); }
   .toggle-label { font-size: 12px; color: var(--text-secondary); }
@@ -390,17 +391,16 @@
     width: 34px; height: 34px;
     display: flex; align-items: center; justify-content: center;
     appearance: none; -webkit-appearance: none;
-    background: rgb(var(--ink) / 0.03);
+    background: var(--bg-card);
     border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
+    border-radius: var(--radius-btn);
     color: var(--text-secondary);
     cursor: pointer;
     padding: 0;
-    box-shadow: var(--inner-hi);
     transition: transform var(--dur) var(--ease-out), background var(--dur) var(--ease-out),
-                color var(--dur) var(--ease-out), border-color var(--dur) var(--ease-out), box-shadow var(--dur) var(--ease-out);
+                color var(--dur) var(--ease-out), border-color var(--dur) var(--ease-out);
   }
-  .theme-toggle:hover { background: rgb(var(--ink) / 0.07); color: var(--text-primary); border-color: var(--border-light); }
+  .theme-toggle:hover { background: var(--inset); color: var(--text-primary); border-color: var(--border-light); }
   .theme-toggle:active { transform: scale(0.96); }
   .theme-toggle:focus-visible {
     outline: none;
@@ -420,20 +420,20 @@
   .btn-icon {
     width: 32px; height: 32px;
     display: flex; align-items: center; justify-content: center;
-    background: rgb(var(--ink) / 0.03);
+    background: var(--bg-card);
     border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
+    border-radius: var(--radius-btn);
     cursor: pointer;
     transition: transform var(--dur) var(--ease-out), background var(--dur) var(--ease-out),
-                color var(--dur) var(--ease-out), border-color var(--dur) var(--ease-out), box-shadow var(--dur) var(--ease-out);
+                color var(--dur) var(--ease-out), border-color var(--dur) var(--ease-out);
     color: var(--text-muted);
   }
-  .btn-icon:hover { background: rgb(var(--ink) / 0.07); color: var(--text-secondary); border-color: var(--border-light); }
+  .btn-icon:hover { background: var(--inset); color: var(--text-secondary); border-color: var(--border-light); }
   .btn-icon:active { transform: scale(0.98); }
   .btn-icon:focus-visible {
     outline: none;
     border-color: var(--accent);
-    box-shadow: 0 0 0 3px rgba(34,211,238,0.18);
+    box-shadow: 0 0 0 3px var(--accent-soft);
   }
   .btn-icon svg { width: 14px; height: 14px; fill: currentColor; }
 
@@ -441,8 +441,6 @@
   .tester-overlay {
     position: fixed; inset: 0; z-index: 50;
     background: var(--scrim);
-    backdrop-filter: blur(3px);
-    -webkit-backdrop-filter: blur(3px);
     opacity: 0; pointer-events: none;
     transition: opacity var(--dur) var(--ease-out);
   }
@@ -451,14 +449,11 @@
   .tester-drawer {
     position: fixed; top: 0; right: -500px; width: 500px; height: 100%;
     z-index: 60;
-    background: var(--glass-strong);
-    backdrop-filter: blur(24px) saturate(150%);
-    -webkit-backdrop-filter: blur(24px) saturate(150%);
+    background: var(--bg-card);
     border-left: 1px solid var(--border);
     transition: right 0.36s var(--ease-spring), visibility 0.36s var(--ease-spring);
     visibility: hidden;
     display: flex; flex-direction: column;
-    box-shadow: var(--shadow-drawer), var(--inner-hi);
   }
   @media (max-width: 540px) { .tester-drawer { width: 100%; right: -100%; } }
   .tester-drawer.open { right: 0; visibility: visible; }
@@ -468,17 +463,17 @@
     padding: 18px 22px;
     border-bottom: 1px solid var(--border);
   }
-  .tester-header h2 { font-size: 15px; font-weight: 600; letter-spacing: -0.012em; }
+  .tester-header h2 { font-size: 15px; font-weight: 700; letter-spacing: 0; }
   .tester-close {
     width: 32px; height: 32px;
     display: flex; align-items: center; justify-content: center;
-    background: rgb(var(--ink) / 0.03); border: 1px solid var(--border); color: var(--text-muted);
-    cursor: pointer; border-radius: var(--radius-sm);
+    background: var(--bg-card); border: 1px solid var(--border); color: var(--text-muted);
+    cursor: pointer; border-radius: var(--radius-btn);
     font-size: 15px;
     transition: transform var(--dur) var(--ease-out), background var(--dur) var(--ease-out),
-                color var(--dur) var(--ease-out), border-color var(--dur) var(--ease-out), box-shadow var(--dur) var(--ease-out);
+                color var(--dur) var(--ease-out), border-color var(--dur) var(--ease-out);
   }
-  .tester-close:hover { background: rgb(var(--ink) / 0.08); color: var(--text-primary); border-color: var(--border-light); }
+  .tester-close:hover { background: var(--inset); color: var(--text-primary); border-color: var(--border-light); }
   .tester-close:active { transform: scale(0.98); }
   .tester-close:focus-visible {
     outline: none;
@@ -499,14 +494,14 @@
     padding: 5px 11px;
     border-radius: 999px;
     border: 1px solid var(--border);
-    background: rgb(var(--ink) / 0.03);
+    background: var(--bg-card);
     color: var(--text-secondary);
     font-size: 11px;
     font-family: var(--font-mono);
     cursor: pointer;
     transition: color var(--dur) var(--ease-out), border-color var(--dur) var(--ease-out), background var(--dur) var(--ease-out), transform var(--dur) var(--ease-out);
   }
-  .preset-chip:hover { border-color: rgba(34,211,238,0.45); color: var(--accent); background: var(--accent-soft); }
+  .preset-chip:hover { border-color: var(--border-light); color: var(--text-primary); background: var(--inset); }
   .preset-chip:active { transform: scale(0.98); }
   .preset-chip:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--bg-primary), 0 0 0 4px var(--accent); }
 
@@ -528,15 +523,15 @@
   .file-upload {
     display: flex; align-items: center; gap: 8px;
     padding: 10px 13px;
-    background: rgb(var(--ink) / 0.02);
+    background: var(--bg-secondary);
     border: 1px dashed var(--border);
     border-radius: var(--radius-sm);
     cursor: pointer;
     transition: border-color var(--dur) var(--ease-out), background var(--dur) var(--ease-out);
   }
-  .file-upload:hover { border-color: var(--border-light); background: rgb(var(--ink) / 0.04); }
+  .file-upload:hover { border-color: var(--border-light); background: var(--inset); }
   .file-upload span { font-size: 12px; color: var(--text-muted); }
-  .file-upload.has-file { border-color: rgba(34,211,238,0.55); border-style: solid; background: var(--accent-soft); }
+  .file-upload.has-file { border-color: var(--border-light); border-style: solid; background: var(--inset); }
   .file-upload input[type=file] { display: none; }
 
   .tester-actions { display: flex; gap: 8px; margin-top: 12px; }
@@ -557,8 +552,8 @@
     white-space: pre-wrap;
   }
   .tester-response.visible { display: block; }
-  .tester-response.success { border-color: rgba(52,211,153,0.35); }
-  .tester-response.error { border-color: rgba(248,113,113,0.35); color: var(--red); }
+  .tester-response.success { border-color: var(--green); }
+  .tester-response.error { border-color: var(--red); color: var(--red-ink); }
   .response-label { font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 6px; }
 
   /* ── Detail Modal ───────────────────────────────────────── */
@@ -567,8 +562,6 @@
     display: flex; align-items: center; justify-content: center;
     padding: 24px;
     background: var(--scrim);
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
     opacity: 0; pointer-events: none;
     transition: opacity var(--dur) var(--ease-out);
   }
@@ -578,17 +571,13 @@
     width: min(920px, 92vw);
     height: min(640px, 88dvh);
     display: flex; flex-direction: column;
-    background: var(--glass-strong);
-    backdrop-filter: blur(24px) saturate(150%);
-    -webkit-backdrop-filter: blur(24px) saturate(150%);
+    background: var(--bg-card);
     border: 1px solid var(--border);
-    border-radius: var(--radius);
-    box-shadow: var(--shadow), var(--inner-hi);
+    border-radius: var(--radius-xs);
     overflow: hidden;
-    transform: scale(0.97);
+    transform: scale(0.985);
     opacity: 0;
-    transition: transform var(--dur) var(--ease-spring), opacity var(--dur) var(--ease-out),
-                width var(--dur) var(--ease-spring), height var(--dur) var(--ease-spring), border-radius var(--dur) var(--ease-out);
+    transition: transform var(--dur) var(--ease-spring), opacity var(--dur) var(--ease-out);
   }
   .modal-overlay.open .modal { transform: scale(1); opacity: 1; }
 
@@ -610,7 +599,7 @@
     flex-shrink: 0;
   }
   .modal-title { font-size: 14px; font-weight: 600; letter-spacing: -0.012em; white-space: nowrap; }
-  .modal-title .modal-id { font-family: var(--font-mono); color: var(--accent); }
+  .modal-title .modal-id { font-family: var(--font-mono); color: var(--text-primary); }
   .modal-meta {
     font-size: 11px; color: var(--text-muted);
     font-family: var(--font-mono);
@@ -623,13 +612,13 @@
     width: 32px; height: 32px;
     display: flex; align-items: center; justify-content: center;
     appearance: none; -webkit-appearance: none;
-    background: rgb(var(--ink) / 0.03); border: 1px solid var(--border);
+    background: var(--bg-card); border: 1px solid var(--border);
     color: var(--text-muted); cursor: pointer; padding: 0;
-    border-radius: var(--radius-sm);
+    border-radius: var(--radius-btn);
     transition: transform var(--dur) var(--ease-out), background var(--dur) var(--ease-out),
                 color var(--dur) var(--ease-out), border-color var(--dur) var(--ease-out), box-shadow var(--dur) var(--ease-out);
   }
-  .modal-icon-btn:hover { background: rgb(var(--ink) / 0.08); color: var(--text-primary); border-color: var(--border-light); }
+  .modal-icon-btn:hover { background: var(--inset); color: var(--text-primary); border-color: var(--border-light); }
   .modal-icon-btn:active { transform: scale(0.96); }
   .modal-icon-btn:focus-visible { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
   .modal-icon-btn svg { width: 15px; height: 15px; fill: currentColor; display: block; }
@@ -657,14 +646,14 @@
   }
   .modal-tab svg { width: 14px; height: 14px; fill: currentColor; }
   .modal-tab:hover { color: var(--text-secondary); }
-  .modal-tab[aria-selected="true"] { color: var(--accent); border-bottom-color: var(--accent); }
+  .modal-tab[aria-selected="true"] { color: var(--text-primary); border-bottom-color: var(--text-primary); }
   .modal-tab:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--bg-primary), 0 0 0 4px var(--accent); border-radius: var(--radius-xs); }
   .modal-tab-count {
     font-size: 10px; font-family: var(--font-mono); font-weight: 600;
-    color: var(--text-muted); background: rgb(var(--ink) / 0.06);
+    color: var(--text-muted); background: var(--inset);
     border-radius: 999px; padding: 1px 7px;
   }
-  .modal-tab[aria-selected="true"] .modal-tab-count { color: var(--accent); background: var(--accent-soft); }
+  .modal-tab[aria-selected="true"] .modal-tab-count { color: var(--text-primary); background: var(--inset); }
 
   .modal-body { flex: 1; min-height: 0; position: relative; }
   .modal-panel { position: absolute; inset: 0; overflow: auto; display: none; }
@@ -678,7 +667,7 @@
     padding: 3px 6px; border-radius: var(--radius-xs);
     min-height: 26px;
   }
-  .krow:hover { background: rgb(var(--ink) / 0.03); }
+  .krow:hover { background: var(--inset); }
   .krow.is-container > .kdisclosure { visibility: visible; }
   .kdisclosure {
     width: 16px; height: 16px; flex-shrink: 0;
@@ -689,7 +678,7 @@
     transition: transform var(--dur) var(--ease-out), color var(--dur) var(--ease-out);
   }
   .kdisclosure svg { width: 12px; height: 12px; fill: currentColor; display: block; }
-  .kdisclosure:hover { color: var(--accent); }
+  .kdisclosure:hover { color: var(--text-primary); }
   .kdisclosure:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--bg-primary), 0 0 0 3px var(--accent); border-radius: 3px; }
   .knode.open > .krow .kdisclosure { transform: rotate(90deg); }
   .kkey { color: var(--text-secondary); flex-shrink: 0; }
@@ -697,9 +686,9 @@
   .kkey.is-empty { color: var(--text-muted); font-style: italic; }
   .kcolon { color: var(--text-muted); opacity: 0.5; }
   .kvalue { color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; }
-  .kvalue.v-string { color: var(--green); }
-  .kvalue.v-number { color: var(--blue); }
-  .kvalue.v-boolean { color: var(--purple); }
+  .kvalue.v-string { color: var(--green-ink); }
+  .kvalue.v-number { color: var(--blue-ink); }
+  .kvalue.v-boolean { color: var(--purple-ink); }
   .kvalue.v-null { color: var(--text-muted); font-style: italic; }
   .ksummary { color: var(--text-muted); flex-shrink: 0; }
   .kchildren { display: none; }
@@ -780,13 +769,12 @@
   .log-shell {
     position: relative;
     flex: 1; min-height: 0;
-    margin: 10px 22px 0;
+    margin: 0 22px;
     background: var(--panel);
     border: 1px solid var(--border);
-    border-radius: var(--radius);
-    box-shadow: var(--inner-hi);
     overflow: hidden;
     display: flex;
+  }
   .log-container { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; scroll-padding-top: 36px; }
   .log-container:focus { outline: none; }
   .log-container:focus-visible {
@@ -795,33 +783,23 @@
   }
   .log-table { width: 100%; border-collapse: separate; border-spacing: 0; table-layout: fixed; }
   .log-table thead { position: sticky; top: 0; z-index: 5; }
-  /* ── Load-older bar (scrolls off like chat "load earlier" rows; thead stays sticky at top:0) ── */
-  .load-older-bar {
-    display: flex; align-items: center; justify-content: center; gap: 8px;
-    min-height: 44px;
-    background: var(--panel-head);
-    border-bottom: 1px solid var(--border);
-  }
-  .load-older-bar[hidden] { display: none; }
-  .load-older-info { font-size: 11px; color: var(--text-muted); font-family: var(--font-sans); }
 
   /* ── Jump-to-latest pill ─────────────────────────────────── */
   .jump-pill {
-    position: absolute; bottom: 18px; left: 50%; transform: translateX(-50%);
+    position: absolute; bottom: 78px; left: 50%; transform: translateX(-50%);
     z-index: 7;
     display: inline-flex; align-items: center; gap: 6px;
     min-height: 44px; padding: 0 18px;
     background: var(--accent); color: var(--on-accent);
-    border: none; border-radius: 999px;
+    border: 1px solid var(--accent); border-radius: var(--radius-btn);
     font-family: var(--font-sans); font-size: 13px; font-weight: 600;
     cursor: pointer;
-    box-shadow: var(--shadow-soft);
     opacity: 0; visibility: hidden;
     transition: opacity 0.15s var(--ease-out), transform 0.15s var(--ease-out);
   }
   .jump-pill.visible { opacity: 1; visibility: visible; }
-  .jump-pill:hover { filter: brightness(1.08); }
-  .jump-pill:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--bg-primary), 0 0 0 4px var(--accent), var(--shadow-soft); }
+  .jump-pill:hover { box-shadow: var(--lift); }
+  .jump-pill:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--bg-primary), 0 0 0 4px var(--accent); }
   .jump-pill svg { width: 14px; height: 14px; fill: currentColor; flex-shrink: 0; }
   @media (prefers-reduced-motion: reduce) {
     .jump-pill { transition: none; }
@@ -829,27 +807,30 @@
   .log-table th {
     padding: 11px 14px;
     text-align: left;
-    font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.14em;
+    font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em;
     color: var(--text-muted);
     background: var(--panel-head);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
     border-bottom: 1px solid var(--border);
-    box-shadow: var(--inner-hi);
     user-select: none;
     white-space: nowrap;
   }
   .log-table td {
-    padding: 10px 14px;
+    padding: 0 14px;
+    height: 36px;
     font-size: 13px;
-    border-bottom: 1px solid rgb(var(--ink) / 0.045);
-    vertical-align: top;
-    line-height: 1.5;
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+    line-height: 36px;
+    overflow: hidden;
+    white-space: nowrap;
   }
   .log-table tbody tr:last-child td { border-bottom: none; }
   .log-table tbody tr { transition: background 0.12s var(--ease-out); }
-  .log-table tbody tr:hover { background: rgb(var(--ink) / 0.028); }
+  .log-table tbody tr:hover { background: var(--bg-hover); }
 
+  .col-select { width: 40px; text-align: center; }
+  .col-select input[type="checkbox"],
+  .log-select { width: 15px; height: 15px; vertical-align: middle; cursor: pointer; }
   .col-id { width: 46px; }
   .col-timestamp { width: 152px; }
   .col-ip { width: 124px; }
@@ -860,6 +841,31 @@
      icon buttons never exceed the fixed column width (which would force a
      horizontal scrollbar on the table). */
   .log-table td.log-actions { padding-left: 0; padding-right: 10px; }
+  /* ── Row loading skeleton (slot not yet fetched) ───────── */
+  .log-table tbody tr.row-loading td {
+    background: var(--inset);
+    animation: rowPulse 1.2s var(--ease-out) infinite;
+  }
+  @keyframes rowPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
+  /* ── Bulk action bar (fixed above the bottom edge of the shell) ── */
+  .bulk-bar {
+    position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%);
+    z-index: 6;
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 12px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-btn);
+    max-width: calc(100% - 40px);
+    flex-wrap: wrap; justify-content: center;
+    box-shadow: var(--lift);
+  }
+  .bulk-bar[hidden] { display: none; }
+  .bulk-count { font-size: 13px; font-weight: 600; color: var(--text-primary); white-space: nowrap; padding: 0 4px; }
+  .bulk-bar .btn { min-height: 40px; }
+  .bulk-bar .btn-primary { background: var(--red); color: var(--red-ink); border: 1px solid var(--red); }
+  .bulk-bar .btn-primary:hover { filter: brightness(0.96); }
+  .bulk-bar .btn-primary:disabled { opacity: 0.5; cursor: wait; }
   .log-actions { display: inline-flex; align-items: center; justify-content: flex-end; gap: 6px; }
 
   .log-id { color: var(--text-muted); font-family: var(--font-mono); font-size: 12px; font-variant-numeric: tabular-nums; }
@@ -877,133 +883,46 @@
     letter-spacing: 0.08em;
     border: 1px solid transparent;
   }
-  .type-object { color: var(--amber); background: rgba(251,191,36,0.10); border-color: rgba(251,191,36,0.22); }
-  .type-array  { color: var(--amber); background: rgba(251,191,36,0.10); border-color: rgba(251,191,36,0.22); }
-  .type-string { color: var(--green); background: rgba(52,211,153,0.10); border-color: rgba(52,211,153,0.22); }
-  .type-number { color: var(--blue); background: rgba(96,165,250,0.10); border-color: rgba(96,165,250,0.22); }
-  .type-boolean{ color: var(--purple); background: rgba(167,139,250,0.10); border-color: rgba(167,139,250,0.22); }
-  .type-null   { color: var(--text-secondary); background: rgba(154,166,182,0.10); border-color: rgba(154,166,182,0.20); }
+  .type-object { color: var(--amber-ink); background: var(--amber); border-color: color-mix(in srgb, var(--amber-ink) 22%, transparent); }
+  .type-array  { color: var(--amber-ink); background: var(--amber); border-color: color-mix(in srgb, var(--amber-ink) 22%, transparent); }
+  .type-string { color: var(--green-ink); background: var(--green); border-color: color-mix(in srgb, var(--green-ink) 22%, transparent); }
+  .type-number { color: var(--blue-ink); background: var(--blue); border-color: color-mix(in srgb, var(--blue-ink) 22%, transparent); }
+  .type-boolean{ color: var(--purple-ink); background: var(--purple); border-color: color-mix(in srgb, var(--purple-ink) 22%, transparent); }
+  .type-null   { color: var(--text-secondary); background: var(--inset); border-color: var(--border); }
 
   .msg { font-family: var(--font-mono); font-size: 13px; line-height: 1.5; vertical-align: middle; }
-  .msg-string { color: var(--green); }
+  .msg-string { color: var(--green-ink); }
   .msg-string::before { content: '"'; opacity: 0.4; }
   .msg-string::after { content: '"'; opacity: 0.4; }
-  .msg-number { color: var(--blue); }
-  .msg-boolean { color: var(--purple); }
+  .msg-number { color: var(--blue-ink); }
+  .msg-boolean { color: var(--purple-ink); }
   .msg-null { color: var(--text-muted); font-style: italic; }
 
-  /* Payload cell: [type badge] + [value]. Flex so the badge never shrinks and
-     the value truncates deterministically instead of wrapping to a stray line. */
-  .payload-cell { display: flex; align-items: flex-start; gap: 0; min-width: 0; }
-  .payload-cell .payload-type-badge { flex: 0 0 auto; margin-top: 2px; }
-  .payload-cell .msg { flex: 1 1 auto; min-width: 0; }
-  .payload-cell .msg-string,
-  .payload-cell .msg-number,
-  .payload-cell .msg-boolean,
-  .payload-cell .msg-null { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-
-  .msg-object, .msg-array {
-    color: var(--amber);
-    font-size: 12px;
-    display: flex; flex-wrap: wrap; align-items: center;
-    min-width: 0;
-  }
-  /* Compact preview: one clean line, ellipsised. The full JSON lives behind
-     the expand affordance, so the row height stays uniform across entries. */
-  .msg-compact {
-    flex: 1 1 0;
-    min-width: 0;
+  /* Payload cell (virtualized table): a single ellipsised line. The full JSON
+     lives only in the detail modal, so no expand/prettify machinery remains. */
+  .payload-cell {
+    display: flex; align-items: center; gap: 6px;
+    min-width: 0; height: 100%;
     overflow: hidden;
-    text-overflow: ellipsis;
     white-space: nowrap;
-    color: var(--text-muted);
   }
-  .msg-object.expanded .msg-compact, .msg-array.expanded .msg-compact { display: none; }
-  /* Only the header row is the expand/collapse target; the JSON body below it
-     keeps default cursor and stays fully selectable. */
-  .payload-head {
-    display: inline-flex; align-items: center; gap: 6px;
-    flex: 0 0 auto;
-    cursor: pointer;
-    border-radius: var(--radius-xs);
-    padding: 2px 6px;
-    margin-left: -6px;
-    transition: background var(--dur) var(--ease-out), box-shadow var(--dur) var(--ease-out);
-    user-select: none;
+  .payload-cell .payload-type-badge { flex: 0 0 auto; }
+  .payload-cell .msg {
+    flex: 1 1 auto; min-width: 0;
+    display: inline-block;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    color: var(--text-secondary);
+    font-family: var(--font-mono); font-size: 12px;
   }
-  .payload-head:hover { background: rgba(251,191,36,0.12); }
-  .payload-head:focus-visible {
-    outline: none;
-    box-shadow: 0 0 0 2px var(--bg-primary), 0 0 0 3px var(--accent);
-  }
-  .payload-toggle {
-    display: inline-flex; align-items: center; justify-content: center;
-    width: 12px; height: 12px;
-    color: var(--text-muted);
-    transition: transform var(--dur) var(--ease-out), color var(--dur) var(--ease-out);
-    flex-shrink: 0;
-  }
-  .payload-toggle svg { width: 12px; height: 12px; fill: currentColor; display: block; }
-  .payload-head:hover .payload-toggle { color: var(--amber); }
-  .msg-object.expanded .payload-toggle { transform: rotate(90deg); color: var(--amber); }
-  .json-preview { color: var(--text-secondary); font-variant-numeric: tabular-nums; }
-  .json-full {
-    display: block;
-    flex: 1 1 100%;
-    background: var(--inset);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-xs);
-    padding: 9px 12px;
-    margin-top: 6px;
-    font-size: 12px;
-    line-height: 1.55;
-    /* pre: preserve indentation and scroll long lines instead of wrapping
-       mid-token (a wrapped "2026-10- / 05T…" string reads as broken JSON). */
-    white-space: pre;
-    overflow: auto;
-    max-height: 280px;
-  }
-  .json-full .json-key { color: var(--syntax-key); }
-  .json-full .json-string { color: var(--green); }
-  .json-full .json-number { color: var(--blue); }
-  .json-full .json-boolean { color: var(--purple); }
-  .json-full .json-null { color: var(--text-muted); font-style: italic; }
-  .json-full .json-bracket { color: var(--text-secondary); }
-  .json-full-bar {
-    display: flex; justify-content: flex-end;
-    margin-bottom: 7px;
-  }
-  .json-copy {
-    display: inline-flex; align-items: center; gap: 4px;
-    padding: 4px 9px;
-    background: var(--accent-soft);
-    border: 1px solid rgba(34,211,238,0.30);
-    border-radius: var(--radius-xs);
-    color: var(--accent);
-    font-size: 11px; font-weight: 600;
-    font-family: var(--font-sans);
-    cursor: pointer;
-    transition: background var(--dur) var(--ease-out), color var(--dur) var(--ease-out),
-                border-color var(--dur) var(--ease-out), transform var(--dur) var(--ease-out), box-shadow var(--dur) var(--ease-out);
-    user-select: none;
-  }
-  .json-copy:hover { background: rgba(34,211,238,0.2); }
-  .json-copy:focus-visible {
-    outline: none;
-    box-shadow: 0 0 0 2px var(--bg-primary), 0 0 0 3px var(--accent);
-  }
-  .json-copy:active { transform: scale(0.96); }
-  .json-copy svg { width: 11px; height: 11px; fill: currentColor; }
-  .json-copy.copied { background: rgba(52,211,153,0.12); border-color: rgba(52,211,153,0.3); color: var(--green); }
 
   .log-file { font-size: 12px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .log-file a {
     display: inline-flex; align-items: center; gap: 5px;
     max-width: 100%;
-    color: var(--accent-dim); text-decoration: none;
+    color: var(--text-secondary); text-decoration: none;
     vertical-align: middle;
   }
-  .log-file a:hover { text-decoration: underline; color: var(--accent); }
+  .log-file a:hover { text-decoration: underline; color: var(--text-primary); }
   .log-file a:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--bg-primary), 0 0 0 3px var(--accent); border-radius: 3px; }
   /* Inline the icon into the 12px text line — never let it drive row height. */
   .log-file svg { width: 13px; height: 13px; fill: currentColor; flex-shrink: 0; }
@@ -1031,20 +950,14 @@
   }
   .row-action:hover { opacity: 1; }
   .row-action:active { transform: scale(0.9); }
-  .row-detail:hover, .row-copy-row:hover { color: var(--accent); background: var(--accent-soft); }
-  .row-detail.copied, .row-copy-row.copied { color: var(--green); background: rgba(52,211,153,0.12); opacity: 1; }
-  .row-delete:hover { color: var(--red); background: rgba(248,113,113,0.12); }
+  .row-detail:hover, .row-copy-row:hover { color: var(--text-primary); background: var(--inset); }
+  .row-detail.copied, .row-copy-row.copied { color: var(--green-ink); background: var(--green); opacity: 1; }
+  .row-delete:hover { color: var(--red-ink); background: var(--red); }
   .row-delete:disabled { opacity: 0.3; cursor: wait; }
+  /* Selected row: pale-green left border + subtle tint. */
+  .log-table tbody tr.row-selected { background: var(--green); }
+  .log-table tbody tr.row-selected .col-select { box-shadow: inset 3px 0 0 var(--green-ink); }
 
-  /* ── New row animation ──────────────────────────────────── */
-  @keyframes slideIn {
-    from { opacity: 0; transform: translateY(8px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-  .log-table tbody tr.new-row { animation: slideIn 0.25s var(--ease-out); }
-  @media (prefers-reduced-motion: reduce) {
-    .log-table tbody tr.new-row { animation: none; }
-  }
   .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
 
   /* ── Empty state ────────────────────────────────────────── */
@@ -1057,28 +970,25 @@
   /* Direct-child only: the decorative hero glyph. Without this, the rule
      also inflates the .btn-ico inside the "Send a test webhook" button. */
   .empty-state > svg { width: 42px; height: 42px; fill: var(--text-muted); opacity: 0.22; margin-bottom: 16px; }
-  .empty-state h3 { font-size: 15px; font-weight: 600; color: var(--text-secondary); margin-bottom: 7px; letter-spacing: -0.012em; }
+  .empty-state h3 { font-size: 15px; font-weight: 700; color: var(--text-primary); margin-bottom: 7px; letter-spacing: 0; }
   .empty-state p { font-size: 13px; color: var(--text-muted); max-width: 420px; line-height: 1.6; }
   .empty-state code {
     font-family: var(--font-mono); font-size: 12px;
-    background: rgb(var(--ink) / 0.04); padding: 2px 8px; border-radius: var(--radius-xs);
+    background: var(--inset); padding: 2px 8px; border-radius: var(--radius-xs);
     border: 1px solid var(--border);
   }
 
-  /* ── Footer (glass chrome) ─────────────────────────────── */
+  /* ── Footer: flat paper band, single 1px top rule ──────── */
   .footer {
     display: flex; align-items: center; justify-content: space-between;
     padding: 9px 22px;
-    background: var(--glass);
-    backdrop-filter: blur(20px) saturate(150%);
-    -webkit-backdrop-filter: blur(20px) saturate(150%);
+    background: var(--bg-primary);
     border-top: 1px solid var(--border);
-    box-shadow: var(--inner-hi);
     font-size: 12px; color: var(--text-muted);
     flex-shrink: 0;
   }
-  .footer a { color: var(--accent-dim); text-decoration: none; transition: color var(--dur) var(--ease-out); }
-  .footer a:hover { text-decoration: underline; color: var(--accent); }
+  .footer a { color: var(--text-secondary); text-decoration: none; transition: color var(--dur) var(--ease-out); }
+  .footer a:hover { text-decoration: underline; color: var(--text-primary); }
   .footer a:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--bg-primary), 0 0 0 4px var(--accent); border-radius: 3px; }
 
   /* ── Responsive ──────────────────────────────────────────── */
@@ -1097,38 +1007,21 @@
     .col-ip { width: 104px; }
     .title-docs { display: none; }
   }
-  /* Below ~680px the fixed grid squeezes payloads into a sliver, so each log
-     becomes a card: id + timestamp + actions on top, payload on its own line,
-     then ip + file. No horizontal overflow, no clipped columns. */
+  /* Below ~680px the desktop column layout is unusable, so the table keeps
+     virtualization (fixed-height rows) but the header gives way to a compact
+     id + timestamp + actions line and each row stacks its cells like a card.
+     ROW_H is a single source of truth shared with JS (see ROW_H_MOBILE). */
   @media (max-width: 680px) {
-    .log-table { table-layout: auto; }
-    .log-table thead { display: none; }
-    .log-table tbody { display: block; }
-    .log-table tr {
-      display: grid;
-      grid-template-columns: auto 1fr auto;
-      grid-template-areas:
-        "id  ts  act"
-        "msg msg msg"
-        "ip  ip  file";
-      align-items: center;
-      gap: 5px 10px;
-      padding: 12px 14px;
-    }
-    .log-table td { padding: 0; border-bottom: none; width: auto; }
-    .log-table tbody tr { border-bottom: 1px solid rgb(var(--ink) / 0.06); }
-    .log-table tbody tr:last-child { border-bottom: none; }
-    /* Cells carry log-* classes (col-* live on the <th>s), so place those. */
-    .log-id { grid-area: id; }
-    .log-ts { grid-area: ts; }
-    .log-ip { grid-area: ip; }
-    td.col-message { grid-area: msg; }
-    .log-file { grid-area: file; display: block; text-align: right; }
-    td.log-actions { grid-area: act; display: flex; }
-    .log-actions { justify-content: flex-end; }
-    .row-action { opacity: 0.7; }
-    .msg-compact { max-width: 100%; }
-    .json-full { max-height: 240px; }
+    .log-table { table-layout: fixed; }
+    .log-table thead { position: sticky; top: 0; }
+    .log-table tbody tr { display: grid; grid-template-columns: 34px 1fr; }
+    .log-table td { height: 64px; line-height: 1.35; white-space: nowrap; overflow: hidden; }
+    .log-table td.col-id { white-space: nowrap; }
+    .log-table td.col-message { grid-column: 1 / -1; white-space: nowrap; }
+    .log-table td.log-actions { grid-column: 1 / -1; justify-content: flex-end; }
+    .row-action { opacity: 0.7; min-height: 40px; min-width: 40px; }
+    .bulk-bar { bottom: 10px; }
+    .jump-pill { bottom: 84px; }
   }
   /* Below ~600px the search box takes its own line and the controls wrap as a
      right-aligned group, so no toolbar control is clipped off the edge. */
@@ -1145,9 +1038,6 @@
 </style>
 </head>
 <body>
-<!-- Decorative ambient layers: static mesh + film grain (never on scrolling containers) -->
-<div class="bg-mesh" aria-hidden="true"></div>
-<div class="bg-grain" aria-hidden="true"></div>
 <div class="app">
 
   <!-- ── Header ──────────────────────────────────────────── -->
@@ -1194,6 +1084,9 @@
       <button class="btn btn-secondary btn-sm" id="exportBtn" title="Export logs as JSON">
         <svg class="btn-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>Export
       </button>
+      <button class="btn btn-secondary btn-sm" id="exportCsvBtn" title="Export logs as CSV">
+        <svg class="btn-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>CSV
+      </button>
       <button class="btn btn-secondary btn-sm" id="importBtn" title="Import logs from a JSON file">
         <svg class="btn-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 16h6v-6h4l-7-7-7 7h4zM5 18h14v2H5z"/></svg>Import
       </button>
@@ -1201,10 +1094,6 @@
       <button type="button" class="toggle" id="autoScrollToggle" role="switch" aria-checked="true" title="Auto-scroll to new entries">
         <span class="toggle-track active" id="scrollTrack" aria-hidden="true"><span class="toggle-knob"></span></span>
         <span class="toggle-label">Scroll</span>
-      </button>
-      <button type="button" class="toggle" id="prettyToggle" role="switch" aria-checked="false" title="Expand all JSON payloads into pretty multi-line view (off = compact one-line)">
-        <span class="toggle-track" id="prettyTrack" aria-hidden="true"><span class="toggle-knob"></span></span>
-        <span class="toggle-label">Pretty</span>
       </button>
       <button class="btn-icon" id="clearBtn" title="Clear displayed logs" aria-label="Clear displayed logs">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
@@ -1218,10 +1107,6 @@
     <div class="log-column">
       <div class="log-shell">
       <div class="log-container" id="logContainer" tabindex="0" role="log" aria-relevant="nothing" aria-label="Log stream">
-        <div class="load-older-bar" id="loadOlderBar" hidden>
-          <button class="btn btn-secondary btn-sm" id="loadMoreBtn">Load 50 older</button>
-          <span class="load-older-info" id="loadMoreInfo"></span>
-        </div>
         <div class="empty-state" id="emptyState">
           <svg viewBox="0 0 24 24"><path d="M20 8h-2.81a5.985 5.985 0 0 0-1.82-1.96L17 4.41 15.59 3l-2.17 2.17C12.96 5.06 12.49 5 12 5c-.49 0-.96.06-1.41.17L8.41 3 7 4.41l1.62 1.63C7.88 6.55 7.26 7.22 6.81 8H4v2h2.09c-.05.33-.09.66-.09 1v1H4v2h2v1c0 .34.04.67.09 1H4v2h2.81c1.04 1.79 2.97 3 5.19 3s4.15-1.21 5.19-3H20v-2h-2.09c.05-.33.09-.66.09-1v-1h2v-2h-2v-1c0-.34-.04-.67-.09-1H20V8z"/></svg>
           <h3>Waiting for logs</h3>
@@ -1236,6 +1121,9 @@
         <table class="log-table" id="logTable" style="display:none">
           <thead>
             <tr>
+              <th class="col-select" scope="col">
+                <input type="checkbox" id="selectAllCb" aria-label="Select all logs">
+              </th>
               <th class="col-id" scope="col">#</th>
               <th class="col-timestamp" scope="col">Timestamp</th>
               <th class="col-ip" scope="col">IP</th>
@@ -1246,6 +1134,13 @@
           </thead>
           <tbody id="logBody"></tbody>
         </table>
+      </div>
+      <div class="bulk-bar" id="bulkBar" hidden>
+        <span class="bulk-count" id="bulkCount">0 selected</span>
+        <button type="button" class="btn btn-primary" id="bulkDeleteBtn">Delete</button>
+        <button type="button" class="btn btn-secondary" id="bulkCopyCsvBtn">Copy as CSV</button>
+        <button type="button" class="btn btn-secondary" id="bulkCopyJsonBtn">Copy as JSON</button>
+        <button type="button" class="btn btn-secondary" id="bulkClearBtn">Clear</button>
       </div>
       <button class="jump-pill" id="jumpPill" aria-live="polite" aria-label="Jump to latest logs">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4V20m0-16l-6 6m6-6l6 6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -1349,25 +1244,81 @@
 </div>
 
 <script>
-// ── State ─────────────────────────────────────────────────
+
+// ── RangeIndex (fixed-base virtual slot space) ────────────
+// Slot space is total rows (server total, adjusted by deletions). Slot 0 is
+// the oldest row; slot total-1 the newest. Slot<->id is O(1) via a fixed base:
+//   slot = id - baseId
+// baseId is the DB floor (lowest id ever) established once at load; ids are
+// stable and monotone so it never needs to move. Deletions are tracked in a
+// Set so slot lookups can report "deleted/empty" while the slot index stays
+// stable. Known rows are cached by id.
+class RangeIndex {
+  constructor() {
+    this.baseId = null;      // lowest id ever observed (the floor)
+    this.deleted = new Set(); // ids removed (gaps in the slot space)
+    this.total = 0;          // server total (authoritative), adjusted by deletions
+  }
+
+  // Establish the floor and total. minId is the lowest id ever seen; it is
+  // monotonically decreasing so it is only ever set when lower than current.
+  initSpace(minId, total) {
+    this.total = total;
+    if (this.baseId === null || minId < this.baseId) this.baseId = minId;
+    if (this.baseId === null) this.baseId = total > 0 ? 1 : 0;
+  }
+
+  // Absolute slot (0-based) for an id, or -1 if outside the space.
+  idToSlot(id) {
+    if (this.baseId === null || id < this.baseId) return -1;
+    return id - this.baseId;
+  }
+
+  // id at an absolute slot, or null if the slot is outside total.
+  slotToId(slot) {
+    if (slot < 0 || slot >= this.total) return null;
+    return this.baseId + slot;
+  }
+
+  totalSlots() { return this.total; }
+
+  // Does this slot back a known, live row?
+  hasId(id) {
+    if (this.deleted.has(id)) return false;
+    return true;
+  }
+
+  // Record a deletion: keep the slot (stable index) but mark the id gone.
+  removeId(id) {
+    if (this.deleted.has(id)) return;
+    this.deleted.add(id);
+    this.total = Math.max(0, this.total - 1);
+  }
+}// ── State ─────────────────────────────────────────────────
 const state = {
   apiKey: '',
   connected: false,
   connecting: false,
-  logs: [],
-  filteredLogs: [],
   autoScroll: true,
   stickToBottom: true,
   pendingCount: 0,
-  prettyPayload: false,
   searchQuery: '',
+  q: '',                    // debounced server-side search term
   abortController: null,
   testerOpen: false,
-  loadedOffset: 0,
-  totalCount: 0,
-  deletedIds: new Set(),
-  loadMoreLoading: false,
-  pageSize: 50,
+  total: 0,                 // authoritative row count (server + SSE deltas)
+  deletedIds: new Set(),    // ids already removed (idempotency guard)
+  cache: new Map(),         // id -> log row object
+  selIds: new Set(),        // individually selected ids
+  selRanges: [],            // inclusive ranges [{from,to}] (range selection)
+  selAnchor: null,          // last clicked id (shift+click range select)
+  selectAllState: 0,        // header checkbox tri-state: 0 none, 1 some, 2 all
+  rangeIndex: new RangeIndex(),
+  inFlight: new Map(),      // pageKey -> Promise (dedupe)
+  fetchQueue: [],
+  renderQueued: false,
+  initDone: false,
+  filtered: false,          // true while a server-side search q is active
 };
 
 // DOM refs
@@ -1385,11 +1336,9 @@ const logCount = $('logCount');
 const visibleCount = $('visibleCount');
 const clearBtn = $('clearBtn');
 const scrollTrack = $('scrollTrack');
-const prettyTrack = $('prettyTrack');
 const logContainer = $('logContainer');
 const jumpPill = $('jumpPill');
 const jumpPillText = $('jumpPillText');
-const loadOlderBar = $('loadOlderBar');
 const testerBtn = $('testerBtn');
 const testerDrawer = $('testerDrawer');
 const testerOverlay = $('testerOverlay');
@@ -1404,11 +1353,29 @@ const fileLabel = $('fileLabel');
 const fileUpload = $('fileUpload');
 const emptyStateSendBtn = $('emptyStateSendBtn');
 const presets = $('presets');
-const loadMoreBtn = $('loadMoreBtn');
-const loadMoreInfo = $('loadMoreInfo');
 const exportBtn = $('exportBtn');
+const exportCsvBtn = $('exportCsvBtn');
 const importBtn = $('importBtn');
 const importFileInput = $('importFileInput');
+const selectAllCb = $('selectAllCb');
+const bulkBar = $('bulkBar');
+const bulkCount = $('bulkCount');
+const bulkDeleteBtn = $('bulkDeleteBtn');
+const bulkCopyCsvBtn = $('bulkCopyCsvBtn');
+const bulkCopyJsonBtn = $('bulkCopyJsonBtn');
+const bulkClearBtn = $('bulkClearBtn');
+
+// ── Virtualization constants ─────────────────────────────
+const ROW_H = 36;          // desktop fixed row height (px)
+const ROW_H_MOBILE = 64;   // mobile fixed row height (px)
+const OVERSCAN = 8;        // extra rows rendered above/below the viewport
+const PAGE = 200;          // rows fetched per page request
+const MAX_CONCURRENT_FETCHES = 4;
+const SCROLL_NEAR_BOTTOM_PX = 60;
+
+function currentRowH() {
+  return window.matchMedia && window.matchMedia('(max-width: 680px)').matches ? ROW_H_MOBILE : ROW_H;
+}
 
 // ── Utility ───────────────────────────────────────────────
 function setStatus(conn) {
@@ -1419,12 +1386,14 @@ function setStatus(conn) {
 function showError(msg) {
   errorMsg.className = 'error-msg visible';
   errorMsg.textContent = msg;
-  setTimeout(() => errorMsg.classList.remove('visible'), 5000);
+  clearTimeout(showError._t);
+  showError._t = setTimeout(() => errorMsg.classList.remove('visible'), 5000);
 }
 function showSuccess(msg) {
   errorMsg.className = 'error-msg visible success';
   errorMsg.textContent = msg;
-  setTimeout(() => errorMsg.classList.remove('visible', 'success'), 5000);
+  clearTimeout(showSuccess._t);
+  showSuccess._t = setTimeout(() => errorMsg.classList.remove('visible', 'success'), 5000);
 }
 function formatTimestamp(ts) {
   try {
@@ -1449,44 +1418,17 @@ function getTypeBadge(val) {
   return '';
 }
 
-function getPayloadHTML(msg) {
-  const t = typeof msg;
-  if (msg === null || msg === undefined) return '<span class="msg msg-null">null</span>';
-  if (t === 'string') return `<span class="msg msg-string">${escapeHtml(msg)}</span>`;
-  if (t === 'number') return `<span class="msg msg-number">${msg}</span>`;
-  if (t === 'boolean') return `<span class="msg msg-boolean">${msg}</span>`;
-  if (Array.isArray(msg) || t === 'object') {
-    const pretty = state.prettyPayload;
-    const jsonStr = syntaxHighlight(JSON.stringify(msg, null, 2));
-    const compactPreview = escapeHtml(JSON.stringify(msg));
-    const preview = msg.length !== undefined
-      ? `[${msg.length} items]`
-      : `{${Object.keys(msg).length} keys}`;
-    const jsonEsc = encodeURIComponent(JSON.stringify(msg));
-    // The expand/collapse click target is ONLY the header row (chevron + preview).
-    // The expanded JSON body (.json-full) is not a toggle target, so text stays
-    // selectable and clicking inside it never collapses the row.
-    //
-    // .json-full is white-space:pre, so the body is built by concatenation:
-    // any literal newline/indent in this template would render as leading
-    // whitespace inside the JSON and push the Copy bar off the top.
-    const jsonBody =
-      `<span class="json-full" style="display:${pretty ? 'block' : 'none'}">` +
-        `<span class="json-full-bar">` +
-          `<button class="json-copy" onclick="event.stopPropagation(); copyJsonFull(this)" title="Copy JSON" aria-label="Copy JSON">${ICON_COPY}<span>Copy</span></button>` +
-        `</span>` +
-        jsonStr +
-      `</span>`;
-    return `<span class="msg msg-object${pretty ? ' expanded' : ''}" data-json='${jsonEsc}'>` +
-      `<span class="payload-head" role="button" tabindex="0" aria-expanded="${pretty ? 'true' : 'false'}" title="${pretty ? 'Hide full JSON' : 'Show full JSON'}" onclick="togglePayloadMode(this)" onkeydown="payloadHeadKey(event, this)">` +
-        `<span class="payload-toggle" aria-hidden="true">${ICON_CHEV}</span>` +
-        `<span class="json-preview">${preview}</span>` +
-      `</span>` +
-      `<span class="msg-compact">${compactPreview}</span>` +
-      jsonBody +
-    `</span>`;
-  }
-  return `<span class="msg">${escapeHtml(String(msg))}</span>`;
+// Compact one-line payload preview for a virtualized row. The full JSON lives
+// only in the detail modal, so the table renders a flattened, ellipsised line.
+function payloadPreview(msg) {
+  if (msg === null || msg === undefined) return 'null';
+  if (typeof msg === 'string') return JSON.stringify(msg);
+  if (typeof msg === 'number' || typeof msg === 'boolean') return String(msg);
+  const raw = JSON.stringify(msg);
+  const compact = raw.length > 200 ? raw.slice(0, 190) + '…' : raw;
+  if (Array.isArray(msg)) return `[${msg.length} items] ${compact}`;
+  if (typeof msg === 'object') return `{${Object.keys(msg).length} keys} ${compact}`;
+  return String(msg);
 }
 
 function escapeHtml(s) {
@@ -1504,40 +1446,11 @@ function syntaxHighlight(json) {
     .replace(/\bnull\b/g, '<span class="json-null">null</span>');
 }
 
-function toggleJson(el) {
-  const full = el.querySelector('.json-full');
-  if (!full) return;
-  // .msg-compact visibility is driven by the .expanded class (see CSS), so the
-  // only inline style to flip here is the JSON body itself.
-  const next = !el.classList.contains('expanded');
-  el.classList.toggle('expanded', next);
-  full.style.display = next ? 'block' : 'none';
-  const head = el.querySelector('.payload-head');
-  if (head) {
-    head.setAttribute('aria-expanded', String(next));
-    head.title = next ? 'Hide full JSON' : 'Show full JSON';
-  }
-}
-
-// Keyboard parity for the header toggle (it is a focusable role="button").
-function payloadHeadKey(event, el) {
-  if (event.key === 'Enter' || event.key === ' ' || event.key === 'Spacebar') {
-    event.preventDefault();
-    toggleJson(el.closest('.msg'));
-  }
-}
-
 // ── Copy to clipboard ─────────────────────────────────────
 const ICON_COPY = '<svg viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>';
 const ICON_COPY_ROW = '<svg viewBox="0 0 24 24"><path d="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm2 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>';
 const ICON_CHECK = '<svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>';
-// Row "Detail" affordance: a document with a magnifier over it.
 const ICON_DETAIL = '<svg viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>';
-
-// Expand affordance for JSON payload cells. The type badge (OBJ/ARR) already
-// names the kind, so the control itself only needs to read as "expand" — a
-// chevron that rotates 90° when the body is open.
-const ICON_CHEV = '<svg viewBox="0 0 24 24"><path d="M10 6 8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>';
 const ICON_EXPORT = '<svg class="btn-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>';
 const ICON_IMPORT = '<svg class="btn-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 16h6v-6h4l-7-7-7 7h4zM5 18h14v2H5z"/></svg>';
 const ICON_TRASH = '<svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>';
@@ -1566,21 +1479,14 @@ async function copyText(text) {
 async function handleCopy(btn, text, doneHtml) {
   const ok = await copyText(text);
   if (!ok) { showError('Copy failed - clipboard unavailable'); return; }
-  if (btn._copyTimer) clearTimeout(btn._copyTimer);
+  clearTimeout(btn._copyTimer);
   const prev = btn.innerHTML;
   btn.classList.add('copied');
   btn.innerHTML = doneHtml || ICON_CHECK;
   btn._copyTimer = setTimeout(() => {
     btn.innerHTML = prev;
     btn.classList.remove('copied');
-    btn._copyTimer = null;
   }, 1500);
-}
-
-function copyJsonFull(btn) {
-  const msgEl = btn.closest('.msg');
-  if (!msgEl || !msgEl.dataset.json) return;
-  handleCopy(btn, decodeURIComponent(msgEl.dataset.json), ICON_CHECK + '<span>Copied</span>');
 }
 
 function toRowJson(log) {
@@ -1593,116 +1499,362 @@ function toRowJson(log) {
   };
 }
 
-function logById(btn) {
-  return state.logs.find(l => l.id === Number(btn.dataset.id));
+function logById(id) {
+  return state.cache.get(Number(id)) || null;
+}
+// ── Virtualization render engine ──────────────────────────
+// The tbody renders only the visible slot window (plus overscan) as real rows,
+// bookended by two spacer <tr> that give the scrollbar the full history length.
+// Slot 0 is the oldest row; slot total-1 the newest. Rows whose id is not yet
+// fetched render as a .row-loading skeleton and trigger a page fetch.
+
+function makeSpacer(heightPx) {
+  const tr = document.createElement('tr');
+  tr.className = 'spacer';
+  const td = document.createElement('td');
+  td.colSpan = 7;
+  td.style.height = Math.max(0, Math.round(heightPx)) + 'px';
+  td.style.padding = '0';
+  tr.appendChild(td);
+  return tr;
 }
 
-// ── Tester Drawer ─────────────────────────────────────────
-function openTester() { state.testerOpen = true; testerDrawer.classList.add('open'); testerOverlay.classList.add('open'); }
-function closeTester() { state.testerOpen = false; testerDrawer.classList.remove('open'); testerOverlay.classList.remove('open'); }
-testerBtn.addEventListener('click', openTester);
-emptyStateSendBtn.addEventListener('click', openTester);
-testerClose.addEventListener('click', closeTester);
-testerOverlay.addEventListener('click', closeTester);
+function makeRow(slot, id) {
+  const log = logById(id);
+  const tr = document.createElement('tr');
+  tr.dataset.id = id;
+  tr.dataset.slot = slot;
+  if (isIdSelected(id)) tr.classList.add('row-selected');
 
-// Preset chips
-presets.addEventListener('click', (e) => {
-  const chip = e.target.closest('.preset-chip');
-  if (!chip) return;
-  payloadEditor.value = chip.dataset.preset;
-  payloadEditor.dispatchEvent(new Event('input'));
-});
+  const tdSel = document.createElement('td');
+  tdSel.className = 'col-select';
+  const cb = document.createElement('input');
+  cb.type = 'checkbox';
+  cb.className = 'log-select';
+  cb.setAttribute('aria-label', 'Select log ' + id);
+  cb.checked = isIdSelected(id);
+  cb.dataset.id = id;
+  tdSel.appendChild(cb);
+  tr.appendChild(tdSel);
 
-// File upload
-fileUpload.addEventListener('click', () => fileInput.click());
-fileInput.addEventListener('change', () => {
-  if (fileInput.files.length > 0) {
-    fileLabel.innerHTML = ICON_CLIP + ' ' + escapeHtml(fileInput.files[0].name);
-    fileUpload.classList.add('has-file');
+  const tdId = document.createElement('td');
+  tdId.className = 'log-id';
+  tdId.textContent = id;
+  tr.appendChild(tdId);
+
+  const tdTs = document.createElement('td');
+  tdTs.className = 'log-ts';
+  tdTs.textContent = log ? formatTimestamp(log.timestamp) : '';
+  tr.appendChild(tdTs);
+
+  const tdIp = document.createElement('td');
+  tdIp.className = 'log-ip';
+  tdIp.textContent = log ? log.ip_address : '';
+  tr.appendChild(tdIp);
+
+  const tdMsg = document.createElement('td');
+  tdMsg.className = 'col-message';
+  if (log) {
+    const preview = payloadPreview(log.payload);
+    const title = preview.replace(/"/g, '&quot;').replace(/</g, '&lt;');
+    tdMsg.innerHTML = '<div class="payload-cell">' +
+      getTypeBadge(log.payload) +
+      '<span class="msg" title="' + title + '">' + escapeHtml(preview) + '</span></div>';
+  }
+  tr.appendChild(tdMsg);
+
+  const tdFile = document.createElement('td');
+  tdFile.className = 'log-file';
+  if (log && log.filename) {
+    tdFile.innerHTML = '<a href="/uploads/' + encodeURIComponent(log.filename) +
+      '" target="_blank" rel="noopener" title="' + escapeHtml(log.filename) + '">' +
+      ICON_CLIP + '<span class="fname">' + escapeHtml(log.filename) + '</span></a>';
   } else {
-    fileLabel.textContent = 'Click to attach a file, or drag one here';
-    fileUpload.classList.remove('has-file');
+    tdFile.textContent = log ? '-' : '';
   }
-});
+  tr.appendChild(tdFile);
 
-// Clear test
-clearTestBtn.addEventListener('click', () => {
-  payloadEditor.value = '';
-  fileInput.value = '';
-  fileLabel.textContent = 'Click to attach a file, or drag one here';
-  fileUpload.classList.remove('has-file');
-  testerResponse.classList.remove('visible', 'success', 'error');
-});
+  const tdAct = document.createElement('td');
+  tdAct.className = 'log-actions';
+  tdAct.innerHTML =
+    '<button class="row-action row-detail" data-id="' + id + '" title="View details of #' + id +
+      '" aria-label="View details of log ' + id + '">' + ICON_DETAIL + '</button>' +
+    '<button class="row-action row-copy-row" data-id="' + id + '" title="Copy row #' + id +
+      '" aria-label="Copy row #' + id + '">' + ICON_COPY_ROW + '</button>' +
+    '<button class="row-action row-delete" data-id="' + id + '" title="Delete log #' + id +
+      '" aria-label="Delete log #' + id + '">' + ICON_TRASH + '</button>';
+  tr.appendChild(tdAct);
+  return tr;
+}
 
-// Send test webhook
-sendTestBtn.addEventListener('click', async () => {
-  const apiKey = apiKeyInput.value.trim() || state.apiKey;
-  if (!apiKey) { showError('Enter an API key first'); return; }
-  const raw = payloadEditor.value.trim();
-  if (!raw) { showError('Enter a JSON payload'); return; }
+function makeLoadingRow(slot) {
+  const tr = document.createElement('tr');
+  tr.className = 'row-loading';
+  tr.dataset.slot = slot;
+  const td = document.createElement('td');
+  td.colSpan = 7;
+  tr.appendChild(td);
+  return tr;
+}// ── Render window + queue + counts ────────────────────────
+function renderWindow() {
+  state.renderQueued = false;
+  const totalSlots = state.rangeIndex.totalSlots();
+  if (totalSlots <= 0) { renderEmptyOrTable(); return; }
 
-  // Validate JSON
-  let payload;
-  try { payload = JSON.parse(raw); } catch { showError('Invalid JSON'); return; }
+  const rowH = currentRowH();
+  const top = logContainer.scrollTop;
+  const height = logContainer.clientHeight || 600;
+  const firstVisible = Math.max(0, Math.floor(top / rowH) - OVERSCAN);
+  const lastVisible = Math.min(totalSlots - 1, Math.ceil((top + height) / rowH) + OVERSCAN);
 
-  sendTestBtn.disabled = true;
-  sendTestBtn.textContent = 'Sending...';
-  testerResponse.classList.remove('visible', 'success', 'error');
+  const fragment = document.createDocumentFragment();
+  fragment.appendChild(makeSpacer(firstVisible * rowH));
 
-  try {
-    const formData = new FormData();
-    formData.append('file', fileInput.files[0]);
-
-    let res;
-    if (fileInput.files.length > 0) {
-      // Multipart: send each JSON key as a separate form field
-      if (typeof payload !== 'object' || payload === null || Array.isArray(payload)) {
-        showError('File upload requires a JSON object payload (e.g., {"key": "value"})');
-        sendTestBtn.disabled = false;
-        sendTestBtn.innerHTML = '<svg class="btn-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.01 21 23 12 2.01 3 2 10l15 2-15 2z"/></svg>Send';
-        return;
-      }
-      for (const [key, val] of Object.entries(payload)) {
-        formData.append(key, typeof val === 'object' ? JSON.stringify(val) : String(val));
-      }
-      formData.append('file', fileInput.files[0]);
-      res = await fetch('/webhook', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${apiKey}` },
-        body: formData,
-      });
+  const missing = [];
+  for (let slot = firstVisible; slot <= lastVisible; slot++) {
+    const id = state.rangeIndex.slotToId(slot);
+    if (id === null) {
+      // Outside the space (shouldn't happen after clamping) -> skeleton.
+      fragment.appendChild(makeLoadingRow(slot));
+    } else if (!state.cache.has(id)) {
+      // Known id, not yet fetched -> skeleton that triggers a page fetch.
+      fragment.appendChild(makeLoadingRow(slot));
+      missing.push(slot);
     } else {
-      res = await fetch('/webhook', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-        body: raw,
-      });
+      fragment.appendChild(makeRow(slot, id));
     }
+  }
 
-    const body = await res.json();
-    testerResponseBody.textContent = JSON.stringify(body, null, 2);
-    testerResponse.className = 'tester-response visible ' + (res.ok ? 'success' : 'error');
+  fragment.appendChild(makeSpacer((totalSlots - lastVisible - 1) * rowH));
+  logBody.innerHTML = '';
+  logBody.appendChild(fragment);
 
-    // Immediately add the log entry to the table (works with or without SSE)
-    if (res.ok) {
-      addLogEntry(body);
-      // If SSE is disconnected but auto-reconnect is pending, show "Connecting..."
-      // Match the auto-reconnect timer's condition exactly
-      if (!state.connected && !state.connecting && state.apiKey && !state.intentionalDisconnect) {
-        setStatus('connecting');
+  if (missing.length) requestFetchForSlots(missing);
+  updateCounts();
+}
+
+function renderEmptyOrTable() {
+  if (state.total <= 0) {
+    emptyState.style.display = 'flex';
+    logTable.style.display = 'none';
+  } else {
+    emptyState.style.display = 'none';
+    logTable.style.display = '';
+  }
+}
+
+function queueRender() {
+  if (state.renderQueued) return;
+  state.renderQueued = true;
+  requestAnimationFrame(renderWindow);
+}
+
+function updateCounts() {
+  logCount.textContent = String(state.total);
+  visibleCount.textContent = state.filtered
+    ? state.total + ' filtered'
+    : String(state.total);
+  syncSelectAllCb();
+}// ── Page fetching (id-anchored, deduped, clamped concurrency) ──
+function authHeaders() {
+  return { 'Authorization': 'Bearer ' + state.apiKey };
+}
+
+// Cached bounds: the lowest and highest ids currently in the cache.
+function cachedBounds() {
+  let lo = null, hi = null;
+  for (const id of state.cache.keys()) {
+    if (lo === null || id < lo) lo = id;
+    if (hi === null || id > hi) hi = id;
+  }
+  return { lo, hi };
+}
+
+// A visible slot is "missing" when we know its id (slotToId) but it is not yet
+// in the cache. planFetches groups missing slots into nearest cached anchors
+// so we can issue id-anchored window fetches. If the window around the slot
+// has no cached ids, anchor on the nearest cached edge (lo/hi) instead of a
+// blind newest page, so the fetch actually fills the requested region.
+function planFetches(slots) {
+  const requests = [];
+  const seen = new Set();
+  const totalSlots = state.rangeIndex.totalSlots();
+  const search = PAGE * 4;
+  for (const slot of slots) {
+    const id = state.rangeIndex.slotToId(slot);
+    if (id === null) continue;
+    if (state.cache.has(id)) continue; // already fetched
+    let anchor = null, dir = null;
+    for (let s = slot - 1; s >= Math.max(0, slot - search); s--) {
+      const a = state.rangeIndex.slotToId(s);
+      if (a !== null && state.cache.has(a)) { anchor = a; dir = 'below'; break; }
+    }
+    if (anchor === null) {
+      for (let s = slot + 1; s <= Math.min(totalSlots - 1, slot + search); s++) {
+        const a = state.rangeIndex.slotToId(s);
+        if (a !== null && state.cache.has(a)) { anchor = a; dir = 'above'; break; }
       }
     }
-  } catch (err) {
-    testerResponseBody.textContent = 'Request failed: ' + err.message;
-    testerResponse.className = 'tester-response visible error';
-  } finally {
-    sendTestBtn.disabled = false;
-    sendTestBtn.innerHTML = '<svg class="btn-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.01 21 23 12 2.01 3 2 10l15 2-15 2z"/></svg>Send';
+    if (anchor === null) {
+      // No cached id in range: pull one page from the nearest cached edge.
+      const b = cachedBounds();
+      if (b.lo === null && b.hi === null) { requests.push({ anchor: null, dir: 'edge', key: 'edge' }); seen.add('edge'); continue; }
+      // The requested slot's id is older than everything cached -> fetch older.
+      if (b.lo !== null && id <= b.lo) { anchor = b.lo; dir = 'below'; }
+      else if (b.hi !== null && id >= b.hi) { anchor = b.hi; dir = 'above'; }
+      else { anchor = b.lo; dir = 'below'; } // between edges; pull older page
+    }
+    const key = dir + ':' + anchor;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    requests.push({ anchor, dir, key });
   }
-});
+  return requests;
+}
+
+function requestFetchForSlots(slots) {
+  const plan = planFetches(slots);
+  for (const p of plan) {
+    if (state.inFlight.has(p.key)) continue;
+    const pr = fetchPage(p.key, p.anchor, p.dir);
+    state.inFlight.set(p.key, pr);
+    pr.catch(() => {});
+    pr.finally(() => state.inFlight.delete(p.key));
+    enqueueFetch(pr);
+  }
+}
+
+async function fetchPage(key, anchor, dir) {
+  let url;
+  const q = state.q ? '&q=' + encodeURIComponent(state.q) : '';
+  if (dir === 'edge' || anchor === null) {
+    url = '/logs?limit=' + PAGE + q;
+  } else if (dir === 'below') {
+    url = '/logs?limit=' + PAGE + '&before_id=' + anchor + q;
+  } else {
+    url = '/logs?limit=' + PAGE + '&after_id=' + anchor + q;
+  }
+  const res = await fetch(url, { headers: authHeaders() });
+  if (!res.ok) throw new Error('Failed to load logs (' + res.status + ')');
+  const data = await res.json();
+  for (const it of (data.items || [])) state.cache.set(it.id, it);
+  // A fetched page may expose a lower floor than we previously knew.
+  for (const it of (data.items || [])) {
+    if (state.rangeIndex.baseId === null || it.id < state.rangeIndex.baseId) {
+      state.rangeIndex.baseId = it.id;
+    }
+  }
+  queueRender();
+}
+
+// Clamp concurrent fetches to MAX_CONCURRENT_FETCHES with a tiny FIFO queue.
+let activeFetches = 0;
+function enqueueFetch(pr) {
+  state.fetchQueue.push(pr);
+  drainFetchQueue();
+}
+function drainFetchQueue() {
+  while (activeFetches < MAX_CONCURRENT_FETCHES && state.fetchQueue.length) {
+    const pr = state.fetchQueue.shift();
+    activeFetches++;
+    pr.finally(() => {
+      activeFetches--;
+      drainFetchQueue();
+    });
+  }
+}// ── History init (fetch newest page + oldest floor, pin bottom) ──
+async function loadHistory() {
+  try {
+    // Newest page: anchors the top of the known space and seeds the cache.
+    const res = await fetch('/logs?limit=' + PAGE + (state.q ? '&q=' + encodeURIComponent(state.q) : ''), {
+      headers: authHeaders(),
+    });
+    if (!res.ok) throw new Error('Failed to load history (' + res.status + ')');
+    const data = await res.json();
+    state.total = data.total;
+    state.rangeIndex.total = data.total;
+
+    // Establish the floor (baseId): the oldest id. A filtered (q) view reports
+    // its own min/max within the filtered set, so the same call still gives a
+    // consistent slot base for that view.
+    const items = data.items || [];
+    let minId = null, maxId = null;
+    for (const it of items) {
+      if (minId === null || it.id < minId) minId = it.id;
+      if (maxId === null || it.id > maxId) maxId = it.id;
+    }
+    if (items.length) {
+      for (const it of items) state.cache.set(it.id, it);
+    }
+    // Probe the true floor once so baseId is the lowest id ever. In the
+    // unfiltered view this is the true oldest row; in a filtered view the
+    // floor of the filtered set is what we need (total counts filtered rows).
+    const probe = await fetch(
+      '/logs?limit=1&after_id=0' + (state.q ? '&q=' + encodeURIComponent(state.q) : ''),
+      { headers: authHeaders() },
+    );
+    if (probe.ok) {
+      const pd = await probe.json();
+      const floorId = pd.items && pd.items.length ? pd.items[0].id : minId;
+      state.rangeIndex.initSpace(floorId || (minId ? minId : 1), data.total);
+    } else {
+      state.rangeIndex.initSpace(minId || 1, data.total);
+    }
+
+    state.initDone = true;
+    state.stickToBottom = true;
+    state.pendingCount = 0;
+    queueRender();
+    scrollToBottomOfList(false);
+  } catch (err) {
+    console.error('History load error:', err);
+    showError('Failed to load log history');
+  }
+}
+
+// ── Add a single log entry (from SSE) ─────────────────────
+function addLogEntry(log) {
+  const id = Number(log.id);
+  if (state.cache.has(id)) return;
+  state.cache.set(id, log);
+  state.total++;
+  state.rangeIndex.total++;
+
+  if (state.filtered) {
+    // Server-side search: re-resolve the filtered space (ids may not be
+    // contiguous under a filter, so refresh the floor + total server-side).
+    loadHistory();
+    return;
+  }
+
+  if (shouldAutoScroll()) {
+    queueRender();
+    requestAnimationFrame(() => scrollToBottomOfList(false));
+  } else if (state.autoScroll) {
+    state.pendingCount++;
+    updateJumpPill();
+  }
+  updateCounts();
+}
+
+// ── Remove a single log entry (delete action or SSE) ──────
+function removeLogEntry(id) {
+  id = Number(id);
+  // Idempotent: each deleted id is counted only once, even when the same
+  // delete arrives via both the local action and the SSE broadcast.
+  if (state.deletedIds.has(id)) return;
+  state.deletedIds.add(id);
+  state.total = Math.max(0, state.total - 1);
+  state.rangeIndex.removeId(id);
+  state.cache.delete(id);
+  deselectId(id);
+  queueRender();
+}
 
 // ── Auto-scroll / sticky-bottom state machine ─────────────
-const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
+const reducedMotion = (typeof matchMedia === 'function')
+  ? matchMedia('(prefers-reduced-motion: reduce)')
+  : { matches: false };
 
 function scrollToBottomOfList(smooth) {
   requestAnimationFrame(() => {
@@ -1711,6 +1863,8 @@ function scrollToBottomOfList(smooth) {
     } else {
       logContainer.scrollTop = logContainer.scrollHeight;
     }
+    // Scrolling to the bottom reveals the newest slots; force a render.
+    queueRender();
   });
 }
 
@@ -1733,35 +1887,33 @@ function hideJumpPill() {
   jumpPill.classList.remove('visible');
 }
 
-// Scroll handler: track whether the user is near the bottom.
-// When the user scrolls up past 60px, pause the pin (stickToBottom = false).
-// When the user scrolls back near the bottom, resume (stickToBottom = true).
-let scrollThrottleTime = 0;
+// Scroll handler: rAF-throttled virtualization + sticky-bottom tracking.
+let scrollRaf = 0;
 logContainer.addEventListener('scroll', () => {
-  const now = performance.now();
-  if (now - scrollThrottleTime < 50) return;
-  scrollThrottleTime = now;
-
-  const nearBottom = (logContainer.scrollHeight - logContainer.scrollTop - logContainer.clientHeight) <= 60;
-  if (nearBottom) {
-    if (!state.stickToBottom) {
-      state.stickToBottom = true;
-      hideJumpPill();
+  if (scrollRaf) return;
+  scrollRaf = requestAnimationFrame(() => {
+    scrollRaf = 0;
+    const nearBottom = (logContainer.scrollHeight - logContainer.scrollTop - logContainer.clientHeight) <= SCROLL_NEAR_BOTTOM_PX;
+    if (nearBottom) {
+      if (!state.stickToBottom) {
+        state.stickToBottom = true;
+        hideJumpPill();
+      }
+    } else if (state.stickToBottom && state.autoScroll) {
+      state.stickToBottom = false;
+      updateJumpPill();
     }
-  } else if (state.stickToBottom && state.autoScroll) {
-    state.stickToBottom = false;
-    updateJumpPill();
-  }
+    renderWindow();
+  });
 });
 
-// Jump pill: click to resume + scroll to bottom.
 jumpPill.addEventListener('click', () => {
   state.stickToBottom = true;
   hideJumpPill();
   scrollToBottomOfList(true);
 });
 
-// Auto-scroll toggle (master switch): when turned ON, pin to bottom immediately.
+// Auto-scroll toggle (master switch): when ON, pin to bottom immediately.
 scrollTrack.addEventListener('click', (e) => {
   e.stopPropagation();
   state.autoScroll = !state.autoScroll;
@@ -1772,13 +1924,11 @@ scrollTrack.addEventListener('click', (e) => {
     hideJumpPill();
     scrollToBottomOfList(true);
   } else {
-    // Auto-scroll OFF: pause the pin, keep position; pill stays hidden because
-    // shouldAutoScroll() is false so no new entries will count as pending.
     state.stickToBottom = false;
   }
 });
 
-// Keyboard: End → jump to latest; Home → top.
+// Keyboard: End -> jump to latest; Home -> top.
 logContainer.addEventListener('keydown', (e) => {
   if (e.key === 'End') {
     e.preventDefault();
@@ -1790,278 +1940,273 @@ logContainer.addEventListener('keydown', (e) => {
     logContainer.scrollTo({ top: 0, behavior: reducedMotion.matches ? 'auto' : 'smooth' });
     if (state.autoScroll) state.stickToBottom = false;
     updateJumpPill();
+    queueRender();
   }
-});
+});// ── Selection model (survives virtualization scroll) ─────
+// Individual toggles live in state.selIds; range (shift-click / select-all)
+// selections live as inclusive {from,to} runs in state.selRanges so thousands
+// can be selected cheaply. Display checks go through isIdSelected.
+function isIdSelected(id) {
+  id = Number(id);
+  if (state.selIds.has(id)) return true;
+  for (const r of state.selRanges) if (r.from <= id && id <= r.to) return true;
+  return false;
+}
+function selCount() {
+  let n = state.selIds.size;
+  for (const r of state.selRanges) n += (r.to - r.from + 1);
+  return n;
+}
+function deselectId(id) {
+  id = Number(id);
+  state.selIds.delete(id);
+  state.selRanges = state.selRanges.filter(r => !(r.from <= id && id <= r.to));
+  syncBulkBar();
+}
+function toggleSelectId(id) {
+  id = Number(id);
+  if (isIdSelected(id)) deselectId(id);
+  else { state.selIds.add(id); state.selAnchor = id; syncBulkBar(); }
+}
+function clearSelection() {
+  state.selIds = new Set();
+  state.selRanges = [];
+  state.selAnchor = null;
+  for (const tr of logBody.querySelectorAll('tr[data-id]')) {
+    const cb = tr.querySelector('.log-select');
+    if (cb) cb.checked = false;
+    tr.classList.remove('row-selected');
+  }
+  syncBulkBar();
+}
+function syncBulkBar() {
+  const n = selCount();
+  if (n > 0) {
+    bulkCount.textContent = n + ' selected';
+    bulkBar.hidden = false;
+  } else {
+    bulkBar.hidden = true;
+  }
+  // Hide the jump pill while the bulk bar is visible (they overlap).
+  jumpPill.classList.toggle('pill-hidden', n > 0);
+}
+// Re-render only the visible checkboxes/rows' selection state without a full
+// page fetch (cheap: walk the current DOM rows).
+function refreshDomSelection() {
+  for (const tr of logBody.querySelectorAll('tr[data-id]')) {
+    const id = Number(tr.dataset.id);
+    const sel = isIdSelected(id);
+    const cb = tr.querySelector('.log-select');
+    if (cb) cb.checked = sel;
+    tr.classList.toggle('row-selected', sel);
+  }
+}
+// Recompute the header select-all tri-state from known selection + totals.
+function syncSelectAllCb() {
+  if (!state.total) { state.selectAllState = 0; }
+  else if (selCount() >= state.total && state.total > 0 && (state.selectAllState === 2)) {
+    state.selectAllState = 2;
+  } else if (selCount() > 0) {
+    state.selectAllState = 1;
+  } else {
+    state.selectAllState = 0;
+  }
+  selectAllCb.checked = state.selectAllState === 2;
+  selectAllCb.indeterminate = state.selectAllState === 1;
+}
 
-// ── Pretty payload toggle ───────────────────────────────────
-// Global mode flips every payload at once. A row the user expanded/collapsed by
-// hand records that intent (cell.dataset.rowExpand) and keeps it across global
-// refreshes; every other row follows the new global mode.
-function refreshPayloadCells() {
-  let changed = false;
-  for (const log of state.logs) {
-    const row = logBody.querySelector(`tr[data-id="${log.id}"]`);
-    const cell = row && row.querySelector('.col-message');
-    if (cell) {
-      const want = cell.dataset.rowExpand; // '1' | '0' | undefined
-      cell.innerHTML = `<div class="payload-cell">${getTypeBadge(log.payload)}${getPayloadHTML(log.payload)}</div>`;
-      if (want === '1' || want === '0') {
-        const fresh = cell.querySelector('.msg-object, .msg-array');
-        if (fresh && fresh.classList.contains('expanded') !== (want === '1')) toggleJson(fresh);
-      }
-      changed = true;
+// Header checkbox: "select all (filtered) rows" as a server-side range over the
+// whole known slot space, not just loaded rows.
+function selectAllRows() {
+  if (!state.total) return;
+  state.selIds = new Set();
+  state.selRanges = [];
+  state.selAnchor = null;
+  // Select the entire live id space (unfetched middle included) so bulk ops
+  // work server-side. baseId is the floor; newest id = baseId + total - 1.
+  const lo = state.rangeIndex.baseId;
+  const hi = lo + state.total - 1;
+  if (lo !== null && lo <= hi) state.selRanges.push({ from: lo, to: hi });
+  state.selectAllState = 2;
+  syncSelectAllCb();
+  syncBulkBar();
+  refreshDomSelection();
+}
+
+// ── Selection interactions ────────────────────────────────
+// Row checkbox: click toggles; ctrl/cmd toggles; shift+click selects the id
+// range between the last anchor and the clicked row.
+logBody.addEventListener('click', (e) => {
+  const cb = e.target.closest('.log-select');
+  if (cb) {
+    e.preventDefault();
+    const id = Number(cb.dataset.id);
+    if (e.shiftKey && state.selAnchor !== null) {
+      const from = Math.min(state.selAnchor, id);
+      const to = Math.max(state.selAnchor, id);
+      state.selRanges.push({ from, to });
+      syncBulkBar();
+      refreshDomSelection();
+      return;
     }
-  }
-  return changed;
-}
-prettyTrack.addEventListener('click', (e) => {
-  e.stopPropagation();
-  state.prettyPayload = !state.prettyPayload;
-  prettyTrack.classList.toggle('active', state.prettyPayload);
-  document.getElementById('prettyToggle').setAttribute('aria-checked', String(state.prettyPayload));
-  if (!refreshPayloadCells()) renderLogs();
-});
-
-// ── Search / Filter ────────────────────────────────────────
-searchInput.addEventListener('input', () => {
-  state.searchQuery = searchInput.value.trim().toLowerCase();
-  renderLogs();
-});
-
-// ── Row builders ───────────────────────────────────────────
-function buildPayloadCell(log) {
-  const tdMsg = document.createElement('td'); tdMsg.className = 'col-message';
-  tdMsg.innerHTML = `<div class="payload-cell">${getTypeBadge(log.payload)}${getPayloadHTML(log.payload)}</div>`;
-  return tdMsg;
-}
-function buildFileCell(log) {
-  const tdFile = document.createElement('td'); tdFile.className = 'log-file';
-  tdFile.innerHTML = log.filename
-    ? `<a href="/uploads/${encodeURIComponent(log.filename)}" target="_blank" rel="noopener" title="${escapeHtml(log.filename)}">${ICON_CLIP}<span class="fname">${escapeHtml(log.filename)}</span></a>`
-    : '-';
-  return tdFile;
-}
-function buildActionsCell(log) {
-  const tdAct = document.createElement('td'); tdAct.className = 'log-actions';
-  // Copy-payload lives on the expanded payload body, so the row action is a
-  // Detail affordance instead.
-  tdAct.innerHTML =
-    `<button class="row-action row-detail" data-id="${log.id}" title="View details of #${log.id}" aria-label="View details of log ${log.id}">${ICON_DETAIL}</button>` +
-    `<button class="row-action row-copy-row" data-id="${log.id}" title="Copy row #${log.id}" aria-label="Copy row #${log.id}">${ICON_COPY_ROW}</button>` +
-    `<button class="row-action row-delete" data-id="${log.id}" title="Delete log #${log.id}" aria-label="Delete log #${log.id}">${ICON_TRASH}</button>`;
-  return tdAct;
-}
-
-// ── Render ─────────────────────────────────────────────────
-const MAX_DOM_ROWS = 400;
-
-// Keep the DOM bounded: when the rendered row count exceeds the cap, drop the
-// oldest visible rows (the top of the terminal-ordered table, i.e. the oldest
-// entries) instantly — no animation, no server-state change.
-function enforceDomCap() {
-  const excess = logBody.children.length - MAX_DOM_ROWS;
-  if (excess <= 0) return;
-  for (let i = 0; i < excess; i++) {
-    if (logBody.firstChild) logBody.removeChild(logBody.firstChild);
-  }
-}
-
-function renderLogs() {
-  const query = state.searchQuery;
-  let filtered = state.logs;
-  if (query) {
-    filtered = state.logs.filter(log => {
-      const p = typeof log.payload === 'string' ? log.payload.toLowerCase() : JSON.stringify(log.payload).toLowerCase();
-      return p.includes(query) || log.ip_address.toLowerCase().includes(query) || log.timestamp.toLowerCase().includes(query);
-    });
-  }
-  state.filteredLogs = filtered;
-
-  if (state.logs.length === 0) {
-    emptyState.style.display = 'flex'; logTable.style.display = 'none'; visibleCount.textContent = '0';
-    loadOlderBar.hidden = true;
-    hideJumpPill();
+    if (e.ctrlKey || e.metaKey) { toggleSelectId(id); state.selAnchor = id; refreshDomSelection(); return; }
+    cb.checked = !isIdSelected(id);
+    if (cb.checked) { state.selIds.add(id); state.selAnchor = id; } else deselectId(id);
+    cb.closest('tr').classList.toggle('row-selected', isIdSelected(id));
+    syncBulkBar();
     return;
   }
-  emptyState.style.display = 'none'; logTable.style.display = '';
-
-  // Terminal ordering: display oldest first, newest last (bottom).
-  // state.logs / filtered are newest-first, so iterate in reverse.
-  const displayOrder = [...filtered].reverse();
-
-  const fragment = document.createDocumentFragment();
-  for (const log of displayOrder) {
-    const tr = document.createElement('tr');
-    tr.dataset.id = log.id;
-    if (log._isNew) { tr.classList.add('new-row'); delete log._isNew; }
-
-    const tdId = document.createElement('td'); tdId.className = 'log-id'; tdId.textContent = log.id;
-    const tdTs = document.createElement('td'); tdTs.className = 'log-ts'; tdTs.textContent = formatTimestamp(log.timestamp);
-    const tdIp = document.createElement('td'); tdIp.className = 'log-ip'; tdIp.textContent = log.ip_address;
-    const tdMsg = buildPayloadCell(log);
-    const tdFile = buildFileCell(log);
-    const tdAct = buildActionsCell(log);
-
-    tr.appendChild(tdId); tr.appendChild(tdTs); tr.appendChild(tdIp); tr.appendChild(tdMsg); tr.appendChild(tdFile); tr.appendChild(tdAct);
-    fragment.appendChild(tr);
+  // Plain click on a row (not a control) toggles selection only with ctrl/cmd.
+  const tr = e.target.closest('tr[data-id]');
+  if (!tr) return;
+  if (e.ctrlKey || e.metaKey) {
+    const id = Number(tr.dataset.id);
+    toggleSelectId(id);
+    state.selAnchor = id;
+    refreshDomSelection();
+    return;
   }
+  // Otherwise the row click falls through to the action buttons below.
+});
 
-  logBody.innerHTML = '';
-  logBody.appendChild(fragment);
-  enforceDomCap();
-  logCount.textContent = state.logs.length;
-  visibleCount.textContent = filtered.length;
-
-  // Load-older bar (top): show when there are older entries not yet loaded.
-  if (!query && state.loadedOffset < state.totalCount) {
-    loadOlderBar.hidden = false;
-    const remaining = state.totalCount - state.loadedOffset;
-    const batchSize = Math.min(state.pageSize, remaining);
-    loadMoreBtn.textContent = `Load ${batchSize} older`;
-    loadMoreInfo.textContent = `(${state.logs.length} of ${state.totalCount})`;
-  } else {
-    loadOlderBar.hidden = true;
+// Action buttons on rows (detail / copy / delete) — same delegation as before.
+logBody.addEventListener('click', async (e) => {
+  const detailBtn = e.target.closest('.row-detail');
+  if (detailBtn) {
+    const log = logById(detailBtn.dataset.id);
+    if (log) openDetail(log, detailBtn);
+    return;
   }
-
-  // Sticky-bottom: only scroll to the newest entry when the pin is active.
-  if (state.autoScroll && state.stickToBottom) {
-    requestAnimationFrame(() => scrollToBottomOfList(false));
+  const copyRowBtn = e.target.closest('.row-copy-row');
+  if (copyRowBtn) {
+    const log = logById(copyRowBtn.dataset.id);
+    if (log) handleCopy(copyRowBtn, JSON.stringify(toRowJson(log), null, 2));
+    return;
   }
-}
-
-// ── Add a single log entry (from SSE) ──────────────────────
-function addLogEntry(log) {
-  if (state.logs.some(l => l.id === log.id)) return;
-  log._isNew = true;
-  state.logs.unshift(log);
-  state.loadedOffset++;  // one more entry exists above our loaded anchor
-
-  if (!state.searchQuery) {
-    const tr = document.createElement('tr');
-    tr.classList.add('new-row'); tr.dataset.id = log.id;
-    const tdId = document.createElement('td'); tdId.className = 'log-id'; tdId.textContent = log.id;
-    const tdTs = document.createElement('td'); tdTs.className = 'log-ts'; tdTs.textContent = formatTimestamp(log.timestamp);
-    const tdIp = document.createElement('td'); tdIp.className = 'log-ip'; tdIp.textContent = log.ip_address;
-    const tdMsg = buildPayloadCell(log);
-    const tdFile = buildFileCell(log);
-    const tdAct = buildActionsCell(log);
-
-    tr.appendChild(tdId); tr.appendChild(tdTs); tr.appendChild(tdIp); tr.appendChild(tdMsg); tr.appendChild(tdFile); tr.appendChild(tdAct);
-    emptyState.style.display = 'none'; logTable.style.display = '';
-    // Terminal order: newest entry is appended to the END (bottom) of the table.
-    logBody.appendChild(tr);
-    enforceDomCap();
-    logCount.textContent = state.logs.length;
-    visibleCount.textContent = state.logs.length;
-
-    if (shouldAutoScroll()) {
-      requestAnimationFrame(() => scrollToBottomOfList(false));
-    } else if (state.autoScroll) {
-      // Auto-scroll master is ON but user scrolled up — count the miss, show pill.
-      state.pendingCount++;
-      updateJumpPill();
-    }
-    // else: autoScroll is OFF — no pending count, view stays put.
-  } else {
-    renderLogs();
-  }
-}
-
-// ── Remove a single log entry (delete action or SSE) ──────
-function removeLogEntry(id) {
-  // Idempotent: each deleted id is counted only once, even when the same
-  // delete arrives via both the local action and the SSE broadcast.
-  if (state.deletedIds.has(id)) return;
-  state.deletedIds.add(id);
-  const idx = state.logs.findIndex(l => l.id === id);
-  if (idx !== -1) {
-    state.logs.splice(idx, 1);
-    state.loadedOffset = Math.max(0, state.loadedOffset - 1);
-  }
-  state.totalCount = Math.max(0, state.totalCount - 1);
-  renderLogs();
-}
-
-// ── Load history ───────────────────────────────────────────
-async function loadHistory(offset = 0) {
+  const btn = e.target.closest('.row-delete');
+  if (!btn) return;
+  const id = Number(btn.dataset.id);
+  const apiKey = state.apiKey || apiKeyInput.value.trim();
+  if (!apiKey) { showError('Connect with an API key first'); return; }
+  btn.disabled = true; btn.textContent = '…';
   try {
-    const res = await fetch(`/logs?limit=${state.pageSize}&offset=${offset}`, {
-      headers: { 'Authorization': `Bearer ${state.apiKey}` },
-    });
-    if (!res.ok) throw new Error(`Failed to load history (${res.status})`);
-    const data = await res.json();
-    state.totalCount = data.total;
-    if (offset === 0) {
-      state.logs = data.items || [];
-      state.loadedOffset = data.items.length;
-      state.deletedIds = new Set(); // server total is authoritative again
-      state.stickToBottom = true;   // initial load: always pin to the newest entry
+    const res = await fetch('/logs/' + id, { method: 'DELETE', headers: authHeaders() });
+    if (res.ok || res.status === 404) {
+      showSuccess('Deleted log #' + id);
+      removeLogEntry(id);
     } else {
-      // Append older entries to the end (state.logs is newest-first)
-      state.logs.push(...(data.items || []));
-      state.loadedOffset += data.items.length;
-    }
-    renderLogs();
-  } catch (err) {
-    console.error('History load error:', err);
-    showError('Failed to load log history');
-  }
-}
-
-// ── Load older (pagination) ───────────────────────────────
-// Older entries land at the TOP of the terminal-ordered table, so a re-render
-// would shift the viewport. Anchor technique: record the topmost visible row
-// before the fetch, then restore its position afterwards.
-loadMoreBtn.addEventListener('click', async () => {
-  if (state.loadMoreLoading) return;
-  state.loadMoreLoading = true;
-  loadMoreBtn.textContent = 'Loading…';
-  loadMoreBtn.disabled = true;
-
-  // Anchor: record the topmost visible row and its pixel position within the
-  // container's scroll content so we can restore it after the re-render.
-  const firstVisibleRow = logBody.firstElementChild;
-  const anchorId = firstVisibleRow ? firstVisibleRow.dataset.id : null;
-  const anchorRect = firstVisibleRow
-    ? firstVisibleRow.getBoundingClientRect()
-    : null;
-  const anchorContentOffset = anchorRect
-    ? anchorRect.top - logContainer.getBoundingClientRect().top + logContainer.scrollTop
-    : 0;
-
-  try {
-    const res = await fetch(`/logs?limit=${state.pageSize}&offset=${state.loadedOffset}`, {
-      headers: { 'Authorization': `Bearer ${state.apiKey}` },
-    });
-    if (!res.ok) throw new Error(`Failed to load older entries (${res.status})`);
-    const data = await res.json();
-    state.logs.push(...(data.items || []));
-    state.loadedOffset += data.items.length;
-    renderLogs();
-
-    // Restore scroll: put the anchor row back where it was (top of viewport).
-    if (anchorId && anchorContentOffset) {
-      const anchorRow = logBody.querySelector(`tr[data-id="${anchorId}"]`);
-      if (anchorRow) {
-        const newRect = anchorRow.getBoundingClientRect();
-        const newOffset = newRect.top - logContainer.getBoundingClientRect().top + logContainer.scrollTop;
-        logContainer.scrollTop += newOffset - anchorContentOffset;
-      } else {
-        // The anchor row was dropped by the DOM cap: fall back to the top of
-        // the remaining content rather than leaving the user stranded.
-        logContainer.scrollTop = 0;
-      }
+      let detail = 'HTTP ' + res.status;
+      try { detail = (await res.json()).detail || detail; } catch {}
+      throw new Error(detail);
     }
   } catch (err) {
-    console.error('Load older error:', err);
-    showError('Failed to load older entries');
-  } finally {
-    state.loadMoreLoading = false;
-    loadMoreBtn.disabled = false;
+    showError('Delete failed: ' + err.message);
+    btn.disabled = false; btn.innerHTML = ICON_TRASH;
   }
 });
 
-// ── SSE Connection ─────────────────────────────────────────
+selectAllCb.addEventListener('change', () => {
+  if (selectAllCb.checked) selectAllRows();
+  else clearSelection();
+});
+
+// ── Bulk actions ───────────────────────────────────────────
+// Materialize selected ids in batches of 500 (never > MAX_SEL_MATERIALIZE at
+// once, so a 100k selection stays cheap).
+const BULK_CHUNK = 500;
+function* iterateSelIds() {
+  // Yield individually selected ids (not inside a range), then range ids.
+  for (const r of state.selRanges) {
+    for (let id = r.from; id <= r.to; id++) yield id;
+  }
+  for (const id of state.selIds) {
+    let inRange = false;
+    for (const r of state.selRanges) if (r.from <= id && id <= r.to) { inRange = true; break; }
+    if (!inRange) yield id;
+  }
+}
+
+bulkDeleteBtn.addEventListener('click', async () => {
+  const ids = Array.from(iterateSelIds());
+  if (!ids.length) return;
+  if (!confirm('Delete ' + ids.length + ' log(s)? This cannot be undone.')) return;
+  const apiKey = state.apiKey || apiKeyInput.value.trim();
+  if (!apiKey) { showError('Connect with an API key first'); return; }
+  bulkDeleteBtn.disabled = true;
+  // Chunked POSTs of 500 ids each; SSE echoes each delete back (idempotent).
+  for (let i = 0; i < ids.length; i += BULK_CHUNK) {
+    const chunk = ids.slice(i, i + BULK_CHUNK);
+    const res = await fetch('/logs/delete-bulk', {
+      method: 'POST',
+      headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids: chunk }),
+    });
+    if (!res.ok) {
+      let detail = 'HTTP ' + res.status;
+      try { detail = (await res.json()).detail || detail; } catch {}
+      showError('Bulk delete failed: ' + detail);
+      break;
+    }
+    const body = await res.json();
+    for (const id of (body.ids || chunk)) {
+      state.deletedIds.add(id);
+      state.cache.delete(id);
+      state.selIds.delete(id);
+    }
+    state.selRanges = state.selRanges.filter(r =>
+      !chunk.some(id => r.from <= id && id <= r.to));
+  }
+  bulkDeleteBtn.disabled = false;
+  clearSelection();
+  // Reconcile totals from the authoritative server count.
+  try {
+    const rr = await fetch('/logs?limit=1', { headers: authHeaders() });
+    if (rr.ok) { const d = await rr.json(); state.total = d.total; state.rangeIndex.total = d.total; }
+  } catch {}
+  queueRender();
+});
+
+async function copySelectedAs(type) {
+  const ids = Array.from(iterateSelIds());
+  if (!ids.length) return;
+  // Materialize the selected rows we don't already have cached.
+  const missing = ids.filter(id => !state.cache.has(id));
+  for (let i = 0; i < missing.length; i += BULK_CHUNK) {
+    const chunk = missing.slice(i, i + BULK_CHUNK);
+    const anchor = chunk[0];
+    try {
+      const res = await fetch('/logs?limit=' + chunk.length + '&after_id=' + anchor, { headers: authHeaders() });
+      if (res.ok) {
+        const data = await res.json();
+        for (const it of (data.items || [])) if (chunk.includes(it.id)) state.cache.set(it.id, it);
+      }
+    } catch {}
+  }
+  const rows = ids.map(id => state.cache.get(id)).filter(Boolean);
+  const btn = type === 'csv' ? bulkCopyCsvBtn : bulkCopyJsonBtn;
+  if (type === 'json') {
+    handleCopy(btn, JSON.stringify(rows.map(toRowJson), null, 2), ICON_CHECK + '<span>Copied</span>');
+  } else {
+    handleCopy(btn, toCsv(rows), ICON_CHECK + '<span>Copied</span>');
+  }
+}
+bulkCopyCsvBtn.addEventListener('click', () => copySelectedAs('csv'));
+bulkCopyJsonBtn.addEventListener('click', () => copySelectedAs('json'));
+bulkClearBtn.addEventListener('click', () => clearSelection());
+
+function toCsv(rows) {
+  const esc = (v) => {
+    if (v === null || v === undefined) return '';
+    const s = typeof v === 'object' ? JSON.stringify(v) : String(v);
+    if (/[",\n\r]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
+    return s;
+  };
+  const lines = ['id,timestamp,ip_address,payload,filename'];
+  for (const r of rows) {
+    lines.push([r.id, r.timestamp, r.ip_address, r.payload, r.filename || ''].map(esc).join(','));
+  }
+  return lines.join('\n');
+}// ── SSE Connection ─────────────────────────────────────────
 async function connectSSE() {
   if (state.connecting) return;
   if (!state.apiKey) { showError('Please enter an API key'); return; }
@@ -2073,22 +2218,25 @@ async function connectSSE() {
   try {
     state.abortController = new AbortController();
     const response = await fetch('/stream', {
-      headers: { 'Authorization': `Bearer ${state.apiKey}` },
+      headers: authHeaders(),
       signal: state.abortController.signal,
     });
-    if (!response.ok) throw new Error(response.status === 403 ? 'Invalid API key' : `HTTP ${response.status}`);
+    if (!response.ok) throw new Error(response.status === 403 ? 'Invalid API key' : 'HTTP ' + response.status);
 
     state.connected = true; state.connecting = false;
     setStatus('connected'); connectBtn.textContent = 'Disconnect'; connectBtn.disabled = false;
-    if (state.logs.length === 0) {
+    if (!state.initDone) {
       await loadHistory();
     } else {
-      // Refresh total count so load-more offset stays accurate
+      // Refresh total count so the RangeIndex stays accurate.
       try {
-        const rr = await fetch('/logs?limit=1&offset=0', {
-          headers: { 'Authorization': `Bearer ${state.apiKey}` },
-        });
-        if (rr.ok) { const d = await rr.json(); state.totalCount = d.total; }
+        const rr = await fetch('/logs?limit=1', { headers: authHeaders() });
+        if (rr.ok) {
+          const d = await rr.json();
+          state.total = d.total;
+          state.rangeIndex.total = d.total;
+          queueRender();
+        }
       } catch {}
     }
 
@@ -2099,8 +2247,8 @@ async function connectSSE() {
       const { done, value } = await reader.read();
       if (done) break;
       buf += decoder.decode(value, { stream: true });
-      // Normalize CRLF: sse-starlette emits \r\n line separators on Windows,
-      // which would otherwise leave '\r' on event/data lines and break matching.
+      // Normalize CRLF: sse-starlette emits \r\n on Windows, which would
+      // otherwise leave '\r' on event/data lines and break matching.
       buf = buf.replace(/\r\n/g, '\n');
       const lines = buf.split('\n');
       buf = lines.pop() || '';
@@ -2130,25 +2278,53 @@ function disconnectSSE() {
   setStatus('disconnected'); connectBtn.textContent = 'Connect'; connectBtn.disabled = false;
 }
 
-// ── Export ──────────────────────────────────────────────────
+// ── Search (server-side, debounced) ────────────────────────
+let searchDebounce = 0;
+searchInput.addEventListener('input', () => {
+  clearTimeout(searchDebounce);
+  searchDebounce = setTimeout(async () => {
+    const term = searchInput.value.trim();
+    if (term === state.q) return;
+    state.q = term;
+    state.searchQuery = term.toLowerCase();
+    state.filtered = term.length > 0;
+    resetSpaceForSearch();
+    await loadHistory();
+    queueRender();
+  }, 300);
+});
+
+// Reset the whole cache + RangeIndex so filtered pages never leak into the
+// unfiltered view (stale filtered pages must not survive a q change).
+function resetSpaceForSearch() {
+  state.rangeIndex = new RangeIndex();
+  state.cache = new Map();
+  state.inFlight.clear();
+  state.fetchQueue = [];
+  activeFetches = 0;
+  state.total = 0;
+  state.deletedIds = new Set();
+  clearSelection();
+  state.stickToBottom = true;
+  state.pendingCount = 0;
+  hideJumpPill();
+  updateJumpPill();
+}
+
+// ── Export JSON ────────────────────────────────────────────
 exportBtn.addEventListener('click', async () => {
   const apiKey = state.apiKey || apiKeyInput.value.trim();
   if (!apiKey) { showError('Connect with an API key first'); return; }
   try {
     exportBtn.textContent = 'Exporting...';
     exportBtn.disabled = true;
-    const res = await fetch('/logs/export', {
-      headers: { 'Authorization': `Bearer ${apiKey}` },
+    const res = await fetch('/logs/export' + (state.q ? '?q=' + encodeURIComponent(state.q) : ''), {
+      headers: authHeaders(),
     });
-    if (!res.ok) throw new Error(`Export failed (${res.status})`);
+    if (!res.ok) throw new Error('Export failed (' + res.status + ')');
     const data = await res.json();
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `hookview-export-${new Date().toISOString().slice(0, 10)}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
+    triggerDownload(blob, 'hookview-export-' + new Date().toISOString().slice(0, 10) + '.json');
   } catch (err) {
     showError(err.message);
   } finally {
@@ -2157,7 +2333,38 @@ exportBtn.addEventListener('click', async () => {
   }
 });
 
-// ── Import ──────────────────────────────────────────────────
+// ── Export CSV ─────────────────────────────────────────────
+exportCsvBtn.addEventListener('click', async () => {
+  const apiKey = state.apiKey || apiKeyInput.value.trim();
+  if (!apiKey) { showError('Connect with an API key first'); return; }
+  try {
+    exportCsvBtn.disabled = true;
+    const prev = exportCsvBtn.innerHTML;
+    exportCsvBtn.textContent = 'Exporting...';
+    const res = await fetch('/logs/export.csv' + (state.q ? '?q=' + encodeURIComponent(state.q) : ''), {
+      headers: authHeaders(),
+    });
+    if (!res.ok) throw new Error('Export failed (' + res.status + ')');
+    const blob = await res.blob();
+    triggerDownload(blob, 'hookview-export-' + new Date().toISOString().slice(0, 10) + '.csv');
+  } catch (err) {
+    showError(err.message);
+  } finally {
+    exportCsvBtn.innerHTML = ICON_EXPORT + 'CSV';
+    exportCsvBtn.disabled = false;
+  }
+});
+
+function triggerDownload(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ── Import ─────────────────────────────────────────────────
 importBtn.addEventListener('click', () => {
   const apiKey = state.apiKey || apiKeyInput.value.trim();
   if (!apiKey) { showError('Connect with an API key first'); return; }
@@ -2169,23 +2376,17 @@ importFileInput.addEventListener('change', async () => {
   if (!file) return;
   const apiKey = state.apiKey || apiKeyInput.value.trim();
   if (!apiKey) { showError('Connect with an API key first'); return; }
-
   importBtn.textContent = 'Importing...';
   importBtn.disabled = true;
   try {
     const formData = new FormData();
     formData.append('file', file);
-    const res = await fetch('/logs/import', {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${apiKey}` },
-      body: formData,
-    });
+    const res = await fetch('/logs/import', { method: 'POST', headers: authHeaders(), body: formData });
     const result = await res.json();
-    if (!res.ok) throw new Error(result.detail || `Import failed (${res.status})`);
-    showSuccess(`Imported ${result.imported} log entries`);
-    // Reload history to show imported entries
-    state.loadedOffset = 0;
-    state.totalCount = 0;
+    if (!res.ok) throw new Error(result.detail || 'Import failed (' + res.status + ')');
+    showSuccess('Imported ' + result.imported + ' log entries');
+    // Imported entries are new ids; refresh the space.
+    resetSpaceForSearch();
     await loadHistory();
   } catch (err) {
     showError('Import error: ' + err.message);
@@ -2196,50 +2397,12 @@ importFileInput.addEventListener('change', async () => {
   }
 });
 
-// ── Delete log (row action button) ─────────────────────────
-logBody.addEventListener('click', async (e) => {
-  const detailBtn = e.target.closest('.row-detail');
-  if (detailBtn) {
-    const log = logById(detailBtn);
-    if (log) openDetail(log, detailBtn);
-    return;
-  }
-  const copyRowBtn = e.target.closest('.row-copy-row');
-  if (copyRowBtn) {
-    const log = logById(copyRowBtn);
-    if (log) handleCopy(copyRowBtn, JSON.stringify(toRowJson(log), null, 2));
-    return;
-  }
-  const btn = e.target.closest('.row-delete');
-  if (!btn) return;
-  const id = Number(btn.dataset.id);
-  const apiKey = state.apiKey || apiKeyInput.value.trim();
-  if (!apiKey) { showError('Connect with an API key first'); return; }
-  btn.disabled = true; btn.textContent = '…';
-  try {
-    const res = await fetch(`/logs/${id}`, {
-      method: 'DELETE',
-      headers: { 'Authorization': `Bearer ${apiKey}` },
-    });
-    if (res.ok || res.status === 404) {
-      // 404 = already deleted elsewhere (another tab / API) - still a success
-      showSuccess(`Deleted log #${id}`);
-      removeLogEntry(id);
-    } else {
-      let detail = `HTTP ${res.status}`;
-      try { detail = (await res.json()).detail || detail; } catch {}
-      throw new Error(detail);
-    }
-  } catch (err) {
-    showError('Delete failed: ' + err.message);
-    btn.disabled = false; btn.innerHTML = ICON_TRASH;
-  }
-});
-
-// ── Clear ──────────────────────────────────────────────────
+// ── Clear displayed logs ───────────────────────────────────
 clearBtn.addEventListener('click', () => {
-  if (state.logs.length === 0) return;
-  if (confirm('Clear displayed logs?')) { state.logs = []; state.loadedOffset = 0; state.totalCount = 0; state.deletedIds = new Set(); renderLogs(); }
+  if (state.total === 0) return;
+  if (!confirm('Clear displayed logs?')) return;
+  resetSpaceForSearch();
+  queueRender();
 });
 
 // ── Connect/Disconnect ─────────────────────────────────────
@@ -2249,9 +2412,7 @@ connectBtn.addEventListener('click', () => {
 });
 apiKeyInput.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && !state.connected && !state.connecting) { state.apiKey = apiKeyInput.value.trim(); connectSSE(); }
-});
-
-// ── Detail modal ───────────────────────────────────────────
+});// ── Detail modal ───────────────────────────────────────────
 // Both tabs consume one normalized tree, so neither renderer ever inspects the
 // raw payload. Payloads are untrusted, so every value is written with
 // textContent — never innerHTML.
@@ -2702,7 +2863,7 @@ window.addEventListener('resize', () => {
 // The <html data-theme> attribute is set by the inline head script before
 // first paint; here we only wire the control and keep the browser chrome
 // (mobile URL bar / scrollbars) in step via color-scheme + theme-color.
-const THEME_COLORS = { dark: '#050608', light: '#f5f7fa' };
+const THEME_COLORS = { dark: '#0F0F0F', light: '#F7F6F3' };
 
 function currentTheme() {
   return document.documentElement.dataset.theme === 'light' ? 'light' : 'dark';
@@ -2711,7 +2872,6 @@ function currentTheme() {
 // written to storage.
 function applyTheme(theme, persist) {
   document.documentElement.dataset.theme = theme;
-  // The diagram island renders its own canvas, so it has to be told too.
   syncDiagramTheme();
   if (persist) {
     try { localStorage.setItem('hookview_theme', theme); } catch { /* private mode */ }
@@ -2721,8 +2881,8 @@ function applyTheme(theme, persist) {
   const btn = document.getElementById('themeToggle');
   if (btn) {
     const next = theme === 'light' ? 'dark' : 'light';
-    btn.setAttribute('aria-label', `Switch to ${next} theme`);
-    btn.title = `Switch to ${next} theme`;
+    btn.setAttribute('aria-label', 'Switch to ' + next + ' theme');
+    btn.title = 'Switch to ' + next + ' theme';
   }
 }
 document.getElementById('themeToggle').addEventListener('click', () => {
@@ -2739,20 +2899,10 @@ connectSSE = async function() {
   sessionStorage.setItem('hookview_api_key', state.apiKey);
   await origConnect();
 };
-window.toggleJson = toggleJson;
-window.copyJsonFull = copyJsonFull;
-// Per-row expand/collapse: local toggle only, independent of global Pretty mode.
-// `el` is the .payload-head row; the JSON body is deliberately not a click target.
-function togglePayloadMode(el) {
-  const msg = el.closest('.msg');
-  const cell = msg && msg.closest('.col-message');
-  window.toggleJson(msg);
-  // Remember the user's explicit choice for this row so a later global Pretty
-  // flip does not override it.
-  if (cell && msg) cell.dataset.rowExpand = msg.classList.contains('expanded') ? '1' : '0';
-}
-window.togglePayloadMode = togglePayloadMode;
-window.payloadHeadKey = payloadHeadKey;
+
+// Boot: render the initial virtual space (seeded if data is already present,
+// e.g. after reconnecting) so the scrollbar length and row window are correct.
+queueRender();
 </script>
 </body>
 </html>
