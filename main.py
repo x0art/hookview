@@ -13,7 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.staticfiles import StaticFiles
 from starlette.datastructures import UploadFile as StarletteUploadFile
-from fastapi.responses import JSONResponse, HTMLResponse, StreamingResponse
+from fastapi.responses import FileResponse, JSONResponse, HTMLResponse, StreamingResponse
 from sse_starlette.sse import EventSourceResponse
 from pydantic import BaseModel, Field
 
@@ -94,9 +94,8 @@ class BulkDeleteRequest(BaseModel):
     """Request body for deleting multiple log entries at once."""
 
     ids: list[int] = Field(
-        ...,
-        min_length=1,
-        description="IDs of the log entries to delete (at least one required)",
+        default_factory=list,
+        description="IDs of the log entries to delete (empty deletes nothing)",
     )
 
 
@@ -106,6 +105,55 @@ class BulkDeleteResult(BaseModel):
     deleted: int = Field(..., description="Number of log entries actually deleted")
     ids: list[int] = Field(
         ..., description="IDs of the log entries that were actually deleted"
+    )
+
+
+class CreateDbRequest(BaseModel):
+    """Request body for creating a new log database."""
+
+    name: Optional[str] = Field(
+        default=None,
+        description="Optional custom name for the new database. Defaults to a timestamped name.",
+    )
+
+
+class ActivateDbRequest(BaseModel):
+    """Request body for activating an existing log database."""
+
+    name: str = Field(..., description="Name of the existing database to activate")
+
+
+class DbEntry(BaseModel):
+    """Metadata for a single log database."""
+
+    name: str = Field(..., description="Database filename")
+    count: Optional[int] = Field(
+        ..., description="Number of log entries, or null if the count could not be read"
+    )
+    size_bytes: int = Field(..., description="Database file size in bytes")
+    modified: str = Field(
+        ..., description="UTC ISO 8601 timestamp of the last file modification"
+    )
+
+
+class DbListResponse(BaseModel):
+    """List of log databases and the currently active one."""
+
+    active: str = Field(..., description="Filename of the currently active database")
+    dbs: list[DbEntry] = Field(..., description="Metadata for every database in the data dir")
+
+
+class DbActionResponse(BaseModel):
+    """Result of creating or activating a log database."""
+
+    active: str = Field(..., description="Filename of the now-active database")
+    created: Optional[bool] = Field(
+        default=None,
+        description="True when the database was newly created (POST /dbs only)",
+    )
+    count: Optional[int] = Field(
+        default=None,
+        description="Number of log entries in the now-active database (POST /dbs/activate only)",
     )
 
 
@@ -347,16 +395,44 @@ app.openapi = _custom_openapi
 
 # ── Database ───────────────────────────────────────────────────────────────
 
-DB_PATH = Path("data/logs.db")
+
+# Files live only in the data dir; the active database is where new webhook
+# records are saved and which /logs reads from.
+DATA_DIR = Path("data")
+ACTIVE_POINTER = DATA_DIR / ".active"  # contains the active database filename
+DEFAULT_DB_NAME = "logs.db"
 UPLOAD_DIR = Path("uploads")
 MAX_FILE_SIZE = 1 * 1024 * 1024 * 1024  # 1 GB
+MAX_IMPORT_BODY_SIZE = 10 * 1024 * 1024  # 10 MB import body cap
+
+# The active database filename, guarded by an asyncio lock so create/activate
+# mutations and the pointer file stay consistent across concurrent requests.
+_active_db: str = DEFAULT_DB_NAME
+_db_lock = asyncio.Lock()
 
 
-async def init_db():
-    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+def _sanitize_db_name(name: Optional[str]) -> str:
+    """Validate and normalize a user-supplied database name.
 
-    db = await aiosqlite.connect(str(DB_PATH))
+    Enforces a bare .db filename with no path separators, no path traversal,
+    and no control characters. Appends .db when the suffix is missing.
+    """
+    raw = (name or "").strip()
+    if not raw:
+        raise HTTPException(status_code=400, detail="Database name must not be empty")
+    if "/" in raw or "\\" in raw:
+        raise HTTPException(status_code=400, detail="Database name must be a bare filename")
+    if ".." in raw:
+        raise HTTPException(status_code=400, detail="Database name must not contain '..'")
+    if any(ord(ch) < 32 or ord(ch) == 127 for ch in raw):
+        raise HTTPException(status_code=400, detail="Database name must not contain control characters")
+    if not raw.endswith(".db"):
+        raw = raw + ".db"
+    return raw
+
+
+async def _ensure_schema(db) -> None:
+    """Idempotently create the logs table on a database connection."""
     await db.execute("PRAGMA journal_mode=WAL")
     await db.execute(
         """
@@ -371,6 +447,55 @@ async def init_db():
         """
     )
     await db.commit()
+
+
+def _get_active_db_path() -> Path:
+    """Return the data-dir Path for the currently active database."""
+    return DATA_DIR / _active_db
+
+
+async def _resolve_startup_db() -> str:
+    """Pick the active database at startup.
+
+    Priority: pointer file (if it names an existing .db) -> data/logs.db if it
+    exists -> the only *.db in the data dir -> create logs.db.
+    """
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+
+    # 1. Pointer file naming an existing database.
+    if ACTIVE_POINTER.is_file():
+        try:
+            name = ACTIVE_POINTER.read_text(encoding="utf-8").strip()
+            candidate = DATA_DIR / name
+            if name and name.endswith(".db") and candidate.is_file():
+                return name
+        except OSError:
+            pass
+
+    # 2. Default logs.db if it exists.
+    if (DATA_DIR / DEFAULT_DB_NAME).is_file():
+        return DEFAULT_DB_NAME
+
+    # 3. The only *.db file in the data dir.
+    dbs = sorted(p.name for p in DATA_DIR.glob("*.db"))
+    if len(dbs) == 1:
+        return dbs[0]
+
+    # 4. Fall back to creating logs.db.
+    return DEFAULT_DB_NAME
+
+
+async def init_db():
+    """Resolve and prepare the active database on startup."""
+    global _active_db
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+
+    _active_db = await _resolve_startup_db()
+    ACTIVE_POINTER.write_text(_active_db + "\n", encoding="utf-8")
+
+    db = await aiosqlite.connect(str(DATA_DIR / _active_db))
+    await _ensure_schema(db)
     return db
 
 
@@ -380,11 +505,18 @@ async def init_db():
 # of them so every client receives every event. (A single shared queue would
 # hand each event to exactly one connection and silently starve the others.)
 _clients: set[asyncio.Queue] = set()
+# A client whose queue grows past this cap is wedged (not reading fast
+# enough); dropping it keeps memory bounded instead of accumulating
+# unbounded pending events for a dead connection.
+MAX_CLIENT_QUEUE = 1000
 
 
 async def broadcast(event: str, data: dict):
-    """Push an SSE event to all connected clients."""
+    """Push an SSE event to all connected clients, dropping wedged ones."""
     for queue in list(_clients):
+        if queue.qsize() >= MAX_CLIENT_QUEUE:
+            _clients.discard(queue)
+            continue
         queue.put_nowait({"event": event, "data": data})
 
 
@@ -535,7 +667,10 @@ async def receive_webhook(request: Request):
             if len(content) > MAX_FILE_SIZE:
                 raise HTTPException(status_code=413, detail="File too large")
 
-            safe_name = f"{timestamp.replace(':', '-').replace('.', '-')}_{file.filename}"
+            # Store only the bare filename (no path components) so a hostile
+            # upload cannot write outside the uploads directory.
+            bare_name = Path(file.filename).name
+            safe_name = f"{timestamp.replace(':', '-').replace('.', '-')}_{bare_name}"
             file_path = UPLOAD_DIR / safe_name
             file_path.write_bytes(content)
             saved_filename = safe_name
@@ -543,17 +678,21 @@ async def receive_webhook(request: Request):
         payload = form_dict if form_dict else {}
 
     else:
-        # Parse JSON body — accept any valid JSON value
+        # Parse JSON body — accept any valid JSON value, including null.
+        # starlette's request.json() rejects an empty body outright, and a
+        # "null" body is a perfectly valid payload, so parse the raw bytes
+        # ourselves: only genuinely unparsable input is a 400.
+        body = await request.body()
         try:
-            payload = await request.json()
-        except json.JSONDecodeError:
+            payload = json.loads(body) if body else None
+        except (json.JSONDecodeError, ValueError) as e:
             raise HTTPException(status_code=400, detail="Invalid JSON body")
 
     # Serialize for storage: always JSON-encode for lossless round-tripping
     stored_payload = json.dumps(payload, ensure_ascii=False)
 
     # Insert into SQLite
-    db = await aiosqlite.connect(str(DB_PATH))
+    db = await aiosqlite.connect(str(_get_active_db_path()))
     cursor = await db.execute(
         "INSERT INTO logs (timestamp, ip_address, payload, filename) VALUES (?, ?, ?, ?)",
         (timestamp, ip_address, stored_payload, saved_filename),
@@ -618,6 +757,26 @@ endpoint to update the table in real time.
 )
 async def stream_logs():
     return EventSourceResponse(event_generator())
+
+
+@app.get(
+    "/uploads/{filename:path}",
+    include_in_schema=False,
+    summary="Download an uploaded webhook file",
+)
+async def get_upload(filename: str):
+    """Serve a stored upload by its bare filename.
+
+    The dashboard links uploads as `/uploads/{filename}` where the filename is
+    a bare, timestamp-prefixed name with no path components. Anything that
+    contains a path separator or traversal is rejected outright.
+    """
+    if any(ch in filename for ch in ("/", "\\", "..")):
+        raise HTTPException(status_code=404, detail="Not found")
+    file_path = UPLOAD_DIR / filename
+    if not file_path.is_file():
+        raise HTTPException(status_code=404, detail="Not found")
+    return FileResponse(file_path, filename=file_path.name)
 
 
 @app.get(
@@ -698,7 +857,7 @@ async def get_logs(
         ),
     ),
 ):
-    db = await aiosqlite.connect(str(DB_PATH))
+    db = await aiosqlite.connect(str(_get_active_db_path()))
     db.row_factory = aiosqlite.Row
 
     clauses: list[str] = []
@@ -754,8 +913,11 @@ async def get_logs(
     dependencies=[Depends(verify_auth)],
     response_model=ExportData,
     summary="Export all log entries as JSON",
-    description="""Downloads **all** log entries as a JSON document, newest first, wrapped with
+    description="""Downloads log entries as a JSON document, newest first, wrapped with
 export metadata. Use it to back up your logs.
+
+Pass `q` to export only the rows currently matching the dashboard search —
+the same case-insensitive substring filter as `GET /logs` and the CSV export.
 
 ## Example
 
@@ -776,12 +938,21 @@ The saved file can be restored later via `POST /logs/import`.
         },
     },
 )
-async def export_logs():
-    db = await aiosqlite.connect(str(DB_PATH))
+async def export_logs(
+    q: Optional[str] = Query(
+        default=None,
+        description="Case-insensitive substring filter on payload text, IP address, and timestamp",
+    ),
+):
+    db = await aiosqlite.connect(str(_get_active_db_path()))
     db.row_factory = aiosqlite.Row
 
+    search_clause, params = _search_clause(q)
+    where_sql = f" WHERE {search_clause}" if search_clause else ""
+
     cursor = await db.execute(
-        "SELECT id, timestamp, ip_address, payload, filename FROM logs ORDER BY id DESC"
+        f"SELECT id, timestamp, ip_address, payload, filename FROM logs{where_sql} ORDER BY id DESC",
+        params,
     )
     rows = await cursor.fetchall()
     await db.close()
@@ -849,7 +1020,7 @@ async def export_logs_csv(
     where_sql = f" WHERE {search_clause}" if search_clause else ""
 
     async def csv_rows():
-        db = await aiosqlite.connect(str(DB_PATH))
+        db = await aiosqlite.connect(str(_get_active_db_path()))
         try:
             db.row_factory = aiosqlite.Row
             cursor = await db.execute(
@@ -1010,11 +1181,18 @@ async def import_logs(request: Request):
                 detail="No file found in multipart upload. Attach a .json file as the 'file' field.",
             )
     else:
+        body = await request.body()
+        if len(body) > MAX_IMPORT_BODY_SIZE:
+            raise HTTPException(status_code=413, detail="Import body exceeds the 10 MB limit")
         try:
-            body = await request.body()
             entries = json.loads(body) if body else None
         except json.JSONDecodeError:
             raise HTTPException(status_code=400, detail="Invalid JSON body")
+
+    if isinstance(entries, dict) and isinstance(entries.get("items"), list):
+        # A saved /logs/export document: accept the wrapper so the UI's
+        # "export -> import" round trip works verbatim.
+        entries = entries["items"]
 
     if not isinstance(entries, list):
         raise HTTPException(
@@ -1025,41 +1203,47 @@ async def import_logs(request: Request):
     if not entries:
         return ImportResult(imported=0)
 
-    db = await aiosqlite.connect(str(DB_PATH))
+    db = await aiosqlite.connect(str(_get_active_db_path()))
     now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
-    imported_count = 0
 
+    # Collect valid rows first, then run one batched insert in a single
+    # transaction — no per-row commits.
+    new_rows: list[tuple] = []
     for entry in entries:
         if not isinstance(entry, dict):
             continue
         timestamp = entry.get("timestamp", now)
         ip_address = entry.get("ip_address")
-        payload_raw = entry.get("payload")
         filename = entry.get("filename")
 
-        if not ip_address or payload_raw is None:
+        # A missing payload key means a malformed entry; an explicit null
+        # payload is valid and must round-trip.
+        if not ip_address or "payload" not in entry:
             continue
 
-        stored_payload = json.dumps(payload_raw, ensure_ascii=False)
+        new_rows.append(
+            (timestamp, str(ip_address), json.dumps(entry["payload"], ensure_ascii=False), filename)
+        )
 
-        cursor = await db.execute(
+    imported_count = 0
+    if new_rows:
+        cursor = await db.executemany(
             "INSERT INTO logs (timestamp, ip_address, payload, filename) VALUES (?, ?, ?, ?)",
-            (timestamp, str(ip_address), stored_payload, filename),
+            new_rows,
         )
         await db.commit()
-        log_id = cursor.lastrowid
-        imported_count += 1
+        imported_count = cursor.rowcount if cursor.rowcount is not None else len(new_rows)
 
-        # Broadcast each imported entry via SSE
-        display_payload = _parse_stored_payload(stored_payload)
-        log_entry = {
-            "id": log_id,
-            "timestamp": timestamp,
-            "ip_address": str(ip_address),
-            "payload": display_payload,
-            "filename": filename,
-        }
-        await broadcast("log", log_entry)
+        # One SSE event per imported row, matching the pre-batch behavior.
+        for row in new_rows:
+            display_payload = _parse_stored_payload(row[2])
+            log_entry = {
+                "timestamp": row[0],
+                "ip_address": row[1],
+                "payload": display_payload,
+                "filename": row[3],
+            }
+            await broadcast("log", log_entry)
 
     await db.close()
     return ImportResult(imported=imported_count)
@@ -1097,7 +1281,7 @@ Returns `200` with `{"deleted": true, "id": 42}`.
     },
 )
 async def delete_log(log_id: int):
-    db = await aiosqlite.connect(str(DB_PATH))
+    db = await aiosqlite.connect(str(_get_active_db_path()))
     db.row_factory = aiosqlite.Row
 
     cursor = await db.execute("SELECT filename FROM logs WHERE id = ?", (log_id,))
@@ -1160,8 +1344,10 @@ async def delete_logs_bulk(request: BulkDeleteRequest):
     # Dedupe while preserving order: duplicates must not delete twice or
     # broadcast two SSE events for the same id.
     ids = list(dict.fromkeys(request.ids))
+    if not ids:
+        return BulkDeleteResult(deleted=0, ids=[])
 
-    db = await aiosqlite.connect(str(DB_PATH))
+    db = await aiosqlite.connect(str(_get_active_db_path()))
     db.row_factory = aiosqlite.Row
 
     placeholders = ", ".join("?" for _ in ids)
@@ -1193,6 +1379,153 @@ async def delete_logs_bulk(request: BulkDeleteRequest):
         await broadcast("delete", {"id": log_id})
 
     return BulkDeleteResult(deleted=len(deleted_ids), ids=deleted_ids)
+
+
+# ── Databases ───────────────────────────────────────────────────────────────
+
+
+@app.get(
+    "/dbs",
+    dependencies=[Depends(verify_auth)],
+    response_model=DbListResponse,
+    summary="List log databases",
+    description="""Lists every log database in the data directory along with the currently
+active one. The active database is where new webhook records are saved and
+which `/logs` reads from.
+
+Each entry reports the number of log entries (`count`), the file size in
+bytes (`size_bytes`), and the file's last-modified UTC timestamp (`modified`).
+If a database cannot be read, its `count` is `null` but it is still listed.
+    """,
+    tags=["Databases"],
+    responses={
+        200: {"description": "List of databases and the active one"},
+        403: {
+            "model": ErrorResponse,
+            "description": "Invalid or missing Bearer API key",
+        },
+    },
+)
+async def list_databases():
+    dbs: list[dict] = []
+    for path in sorted(DATA_DIR.glob("*.db"), key=lambda p: p.name):
+        stat = path.stat()
+        try:
+            db = await aiosqlite.connect(str(path))
+            cursor = await db.execute("SELECT COUNT(*) FROM logs")
+            row = await cursor.fetchone()
+            count = row[0] if row else 0
+            await db.close()
+        except Exception:
+            count = None
+        dbs.append(
+            {
+                "name": path.name,
+                "count": count,
+                "size_bytes": stat.st_size,
+                "modified": datetime.fromtimestamp(stat.st_mtime, timezone.utc)
+                .isoformat()
+                .replace("+00:00", "Z"),
+            }
+        )
+    return {"active": _active_db, "dbs": dbs}
+
+
+@app.post(
+    "/dbs",
+    dependencies=[Depends(verify_auth)],
+    response_model=DbActionResponse,
+    summary="Create a new log database",
+    description="""Creates a new log database in the data directory, initializes its schema,
+and sets it as the active database. When no `name` is supplied, a timestamped
+default is used (e.g. `logs-20261105-143012.db`).
+
+A `db` SSE event is broadcast so connected dashboards reset and reload.
+    """,
+    tags=["Databases"],
+    responses={
+        200: {"description": "Database created and made active"},
+        400: {
+            "model": ErrorResponse,
+            "description": "Invalid database name",
+        },
+        403: {
+            "model": ErrorResponse,
+            "description": "Invalid or missing Bearer API key",
+        },
+    },
+)
+async def create_database(request: CreateDbRequest):
+    global _active_db
+    if request.name is not None:
+        name = _sanitize_db_name(request.name)
+    else:
+        name = f"logs-{datetime.now(timezone.utc).strftime('%Y%m%d-%H%M%S')}.db"
+
+    async with _db_lock:
+        path = DATA_DIR / name
+        db = await aiosqlite.connect(str(path))
+        await _ensure_schema(db)
+        await db.close()
+        _active_db = name
+        ACTIVE_POINTER.write_text(name + "\n", encoding="utf-8")
+
+    await broadcast("db", {"active": name})
+    return {"active": name, "created": True}
+
+
+@app.post(
+    "/dbs/activate",
+    dependencies=[Depends(verify_auth)],
+    response_model=DbActionResponse,
+    summary="Activate an existing log database",
+    description="""Switches the active log database to an existing one in the data directory.
+The database must already exist. Its schema is ensured idempotently, and a
+`db` SSE event is broadcast so connected dashboards reset and reload.
+    """,
+    tags=["Databases"],
+    responses={
+        200: {"description": "Database activated"},
+        400: {
+            "model": ErrorResponse,
+            "description": "Invalid database name",
+        },
+        403: {
+            "model": ErrorResponse,
+            "description": "Invalid or missing Bearer API key",
+        },
+        404: {
+            "model": ErrorResponse,
+            "description": "Database not found",
+        },
+    },
+)
+async def activate_database(request: ActivateDbRequest):
+    global _active_db
+    name = _sanitize_db_name(request.name)
+    path = DATA_DIR / name
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail=f"Database '{name}' not found")
+
+    async with _db_lock:
+        db = await aiosqlite.connect(str(path))
+        await _ensure_schema(db)
+        await db.close()
+        _active_db = name
+        ACTIVE_POINTER.write_text(name + "\n", encoding="utf-8")
+
+    count: Optional[int] = None
+    try:
+        db = await aiosqlite.connect(str(path))
+        cursor = await db.execute("SELECT COUNT(*) FROM logs")
+        row = await cursor.fetchone()
+        count = row[0] if row else 0
+        await db.close()
+    except Exception:
+        count = None
+
+    await broadcast("db", {"active": name})
+    return {"active": name, "count": count}
 
 
 # ── Frontend ───────────────────────────────────────────────────────────────
