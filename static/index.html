@@ -939,12 +939,12 @@
     inset: 0;
     z-index: 50;
     background: var(--scrim);
-    display: grid;
+    display: none;
     place-items: center;
     opacity: 0;
     transition: opacity var(--dur-base) var(--ease-out);
   }
-  .modal-scrim.open { opacity: 1; }
+  .modal-scrim.open { display: grid; opacity: 1; }
   .modal {
     background: var(--canvas-bg-overlay);
     border: 1px solid var(--border-default);
@@ -3496,25 +3496,29 @@ function openDetail(log, trigger) {
   $('detailMeta').textContent = formatTimestamp(log.timestamp) + ' · ' + log.ip_address + ' · ' + (BADGE_LABEL[kind] || kind);
   $('keysCount').textContent = String(countNodes(tree));
 
-  detailOverlay.inert = false;
-  detailOverlay.removeAttribute('aria-hidden');
-  detailState.open = true;
-  requestAnimationFrame(() => detailOverlay.classList.add('open'));
-  selectTab('keys');
-  requestAnimationFrame(() => $('detailClose').focus());
+  requestAnimationFrame(() => {
+    detailOverlay.inert = false;
+    detailOverlay.removeAttribute('aria-hidden');
+    detailOverlay.classList.add('open');
+    detailState.open = true;
+    selectTab('keys');
+    $('detailClose').focus();
+  });
 }
 
 function closeDetail() {
   if (!detailState.open) return;
   detailState.open = false;
   if (detailState.fullscreen) setFullscreen(false);
-  detailOverlay.classList.remove('open');
-  detailOverlay.inert = true;
-  detailOverlay.setAttribute('aria-hidden', 'true');
   detailState.tree = null;
   detailState.payload = null;
   if (detailState.trigger && document.contains(detailState.trigger)) detailState.trigger.focus();
   detailState.trigger = null;
+  requestAnimationFrame(() => {
+    detailOverlay.classList.remove('open');
+    detailOverlay.setAttribute('aria-hidden', 'true');
+    requestAnimationFrame(() => { detailOverlay.inert = true; });
+  });
 }
 
 // Modal wiring
