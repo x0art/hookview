@@ -239,6 +239,9 @@
   }
   .btn:disabled { opacity: .5; cursor: default; }
   .btn .btn-ico, .btn svg { width: 16px; height: 16px; flex-shrink: 0; }
+  /* Button glyphs are fill-designed paths (Material/Octicon geometry):
+     render them filled with the button's text color, never stroke-only. */
+  .btn svg { fill: currentColor; stroke: none; }
 
   .btn-neutral {
     background: var(--btn-neutral-bg);
@@ -519,7 +522,7 @@
     border: none; background: transparent; cursor: pointer;
     color: inherit; opacity: .8; border-radius: var(--radius-sm);
   }
-  .flash-close:hover { opacity: .5; }
+  .flash-close:hover { opacity: .7; }
   .flash-close svg { width: 14px; height: 14px; margin: 0; }
 
   /* ── Status / footer bar (§3.a.4) ── */
@@ -592,7 +595,7 @@
   }
   .log-row .col-select { justify-content: center; }
   .log-row .col-level { font-family: var(--font-sans); }
-  .log-row .col-event { font-family: var(--font-sans); }
+  .log-row .col-event { font-family: var(--font-mono); }
   .log-row .col-status { display: flex; align-items: center; gap: 6px; font-family: var(--font-mono); }
 
   /* status dot (§3.c): 8px circle, class-color */
@@ -605,6 +608,25 @@
   .status-dot.st-ok    { background: var(--fg-success); }
   .status-dot.st-warn  { background: var(--fg-attention); }
   .status-dot.st-err   { background: var(--fg-danger); }
+
+  /* level badge (§3.c Primer label: pill, tinted bg + ink text + 30% border) */
+  .level-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0 8px;
+    min-height: 20px;
+    border-radius: var(--pill);
+    border: 1px solid transparent;
+    font: 500 12px/20px var(--font-sans);
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    white-space: nowrap;
+  }
+  .level-info  { background: var(--label-info);      color: var(--label-info-ink);      border-color: color-mix(in srgb, var(--label-info-ink) 30%, transparent); }
+  .level-ok    { background: var(--label-success);   color: var(--label-success-ink);   border-color: color-mix(in srgb, var(--label-success-ink) 30%, transparent); }
+  .level-warn  { background: var(--label-attention); color: var(--label-attention-ink); border-color: color-mix(in srgb, var(--label-attention-ink) 30%, transparent); }
+  .level-error { background: var(--label-danger);    color: var(--label-danger-ink);    border-color: color-mix(in srgb, var(--label-danger-ink) 30%, transparent); }
+  .level-debug { background: var(--label-neutral);   color: var(--label-neutral-ink);   border-color: color-mix(in srgb, var(--label-neutral-ink) 30%, transparent); }
 
   /* spacer rows keep the grid shape so scrollbar math stays uniform */
   .log-spacer { display: block; }
@@ -633,7 +655,7 @@
   /* file link */
   .log-file a { display: inline-flex; align-items: center; gap: 4px; color: var(--fg-accent); text-decoration: none; overflow: hidden; }
   .log-file a:hover { text-decoration: underline; }
-  .log-file svg { width: 12px; height: 12px; flex-shrink: 0; fill: none; stroke: currentColor; stroke-width: 1.6; }
+  .log-file svg { width: 12px; height: 12px; flex-shrink: 0; fill: currentColor; stroke: none; }
 
   /* row action icons (§3.c: 24px hit, 16px glyph, reveal on hover) */
   .col-actions { display: flex; justify-content: flex-end; align-items: center; gap: 2px; }
@@ -648,7 +670,7 @@
                 background-color var(--dur-fast) var(--ease-out),
                 color var(--dur-fast) var(--ease-out);
   }
-  .row-action svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.6; }
+  .row-action svg { width: 16px; height: 16px; fill: currentColor; stroke: none; }
   .log-row:hover .row-action,
   .row-action:focus-visible,
   .row-action:focus { opacity: 1; }
@@ -985,6 +1007,7 @@
   }
   .modal-icon-btn:hover { background: var(--btn-neutral-hover); color: var(--fg-default); }
   .modal-icon-btn svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.6; }
+  .modal-icon-btn svg.fill { fill: currentColor; stroke: none; }
   #detailFullscreenBtn .icon-collapse { display: none; }
   #detailFullscreenBtn.is-fullscreen .icon-expand { display: none; }
   #detailFullscreenBtn.is-fullscreen .icon-collapse { display: block; }
@@ -1081,7 +1104,7 @@
   }
   .kcopy:hover { color: var(--fg-default); background: var(--btn-neutral-hover); }
   .krow:hover .kcopy { opacity: 1; }
-  .kcopy svg { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 1.6; }
+  .kcopy svg { width: 12px; height: 12px; fill: currentColor; stroke: none; }
   .kchildren { margin-left: 16px; border-left: 1px solid var(--border-muted); padding-left: 8px; }
   .kmore { padding: 4px; }
   .kmore-btn {
@@ -1193,6 +1216,8 @@
       --col-level: 64px;
     }
     .col-payload { display: none; }
+    .docs-pill { display: none; }
+    .db-badge { max-width: 96px; }
     .log-grid-head, .log-row { column-gap: 4px; }
     .auth-row { flex-wrap: wrap; }
     .auth-row .input { flex-basis: 100%; order: 3; }
@@ -1227,13 +1252,13 @@
         <span id="statusLabel" aria-live="polite">OFFLINE</span>
       </span>
       <button type="button" class="btn-icon tester-toggle" id="testerBtn" aria-label="Open the webhook tester" title="Webhook tester">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.01 21 23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+        <svg class="fill" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.01 21 23 12 2.01 3 2 10l15 2-15 2z"/></svg>
       </button>
       <button type="button" class="btn-icon" id="exportBtn" aria-label="Export logs as JSON" title="Export JSON">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+        <svg class="fill" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
       </button>
       <button type="button" class="btn-icon" id="importBtn" aria-label="Import logs from a JSON file" title="Import JSON">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 16h6v-6h4l-7-7-7 7h4zM5 18h14v2H5z"/></svg>
+        <svg class="fill" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 16h6v-6h4l-7-7-7 7h4zM5 18h14v2H5z"/></svg>
       </button>
       <input type="file" id="importFileInput" accept=".json" style="display:none">
       <button type="button" class="btn-icon" id="exportCsvBtn" aria-label="Export logs as CSV" title="Export CSV">
@@ -1241,7 +1266,7 @@
       </button>
       <button type="button" class="btn-icon" id="themeToggle" aria-label="Switch to dark theme" title="Switch theme">
         <svg class="icon-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32 1.41 1.41M2 12h2m16 0h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
-        <svg class="icon-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+        <svg class="icon-moon fill" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
       </button>
     </div>
   </header>
@@ -1312,7 +1337,7 @@
                 <input type="checkbox" id="selectAllCb" aria-label="Select all logs">
               </div>
               <div class="col-level" role="columnheader">Level</div>
-              <div class="col-time" role="columnheader" aria-sort="descending">Time</div>
+              <div class="col-time" role="columnheader">Time</div>
               <div class="col-event" role="columnheader">Event</div>
               <div class="col-payload" role="columnheader">Payload</div>
               <div class="col-status" role="columnheader">Status</div>
@@ -1322,7 +1347,7 @@
           </div>
         </div>
         <button class="jump-pill" id="jumpPill" aria-label="Jump to latest logs">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v16m0-16-6 6m6-6 6 6"/></svg>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20V4m0 16 6-6m-6 6-6-6"/></svg>
           <span id="jumpPillText">0 new</span>
         </button>
       </div>
@@ -1332,7 +1357,7 @@
   <!-- ── Status / footer bar (§3.a.4) ───────────────────────── -->
   <div class="footer">
     <div class="footer-left">
-      <span><span id="visibleCount">0</span> logs</span>
+      <span aria-live="polite" aria-atomic="true"><span id="visibleCount">0</span> logs</span>
       <span class="footer-db">db: <span id="footerDbName">—</span></span>
     </div>
     <div class="footer-right">
@@ -1399,8 +1424,8 @@
       <span class="modal-meta" id="detailMeta"></span>
       <div class="modal-header-actions">
         <button type="button" class="modal-icon-btn" id="detailFullscreenBtn" aria-label="Enter fullscreen" title="Toggle fullscreen">
-          <svg class="icon-expand" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>
-          <svg class="icon-collapse" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z"/></svg>
+          <svg class="icon-expand fill" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>
+          <svg class="icon-collapse fill" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z"/></svg>
         </button>
         <button type="button" class="modal-icon-btn" id="detailClose" aria-label="Close detail view" title="Close">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
@@ -1619,7 +1644,8 @@ function showFlash(msg, kind) {
   close.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>';
   close.addEventListener('click', () => hideFlash());
   flashEl.replaceChildren(ic.firstElementChild, span, close);
-  flashTimer = setTimeout(() => hideFlash(), 5000);
+  // §3.g: errors stay until dismissed; only success/info auto-hide.
+  if (kind !== 'error') flashTimer = setTimeout(() => hideFlash(), 5000);
 }
 function hideFlash() {
   clearTimeout(flashTimer);
@@ -1645,7 +1671,8 @@ function toast(msg, kind, sticky) {
     setTimeout(() => t.remove(), 200);
   };
   t.querySelector('.toast-close').addEventListener('click', dismiss);
-  if (!sticky) setTimeout(dismiss, 5000);
+  // §3.g: success/info auto-dismiss after 5s; errors stay until dismissed.
+  if (!sticky && kind !== 'error') setTimeout(dismiss, 5000);
 }
 
 function formatTimestamp(ts) {
@@ -2038,6 +2065,23 @@ function renderEmptyOrTable() {
   if (state.rangeIndex.totalSlots() <= 0) {
     emptyState.style.display = 'flex';
     logGrid.style.display = 'none';
+    // Context-aware copy: the same panel means three different things —
+    // not connected yet, connected with no logs, or a search with no hits.
+    const h = emptyState.querySelector('h3');
+    const p = emptyState.querySelector('p:not(.hint)');
+    if (state.filtered) {
+      h.textContent = 'No matching logs';
+      p.textContent = 'No logs match the current search. Try a different term, or clear the search to see everything.';
+      emptyStateSendBtn.style.display = 'none';
+    } else if (state.connected) {
+      h.textContent = 'No logs yet';
+      p.textContent = 'Connected and listening. New webhooks will appear here in real time — or send a test webhook to try it out.';
+      emptyStateSendBtn.style.display = '';
+    } else {
+      h.textContent = 'Waiting for logs';
+      p.innerHTML = 'Enter your API key above and click <strong>Connect</strong> to start receiving logs in real time.';
+      emptyStateSendBtn.style.display = '';
+    }
   } else {
     emptyState.style.display = 'none';
     logGrid.style.display = '';
@@ -2362,17 +2406,16 @@ logContainer.addEventListener('keydown', (e) => {
   }
 });
 
-// Toggles
-prettyTrack.addEventListener('click', (e) => {
-  e.stopPropagation();
+// Toggles: bind to the whole button (track + label), not just the track
+// span — clicks on the "Pretty"/"Auto-scroll" text must toggle too.
+prettyToggle.addEventListener('click', () => {
   state.prettyPayload = !state.prettyPayload;
   prettyTrack.classList.toggle('active', state.prettyPayload);
   prettyToggle.setAttribute('aria-checked', String(state.prettyPayload));
   refreshPayloadCells();
 });
 
-scrollTrack.addEventListener('click', (e) => {
-  e.stopPropagation();
+autoScrollToggle.addEventListener('click', () => {
   state.autoScroll = !state.autoScroll;
   scrollTrack.classList.toggle('active', state.autoScroll);
   autoScrollToggle.setAttribute('aria-checked', String(state.autoScroll));
@@ -2754,9 +2797,6 @@ function populateDbPicker(dbs, active) {
   placeholder.textContent = '— database —';
   dbPicker.appendChild(placeholder);
   const opts = (dbs || []).slice();
-  if (!active && !opts.some(d => d.name === active)) {
-    opts.unshift({ name: active || '' });
-  }
   for (const db of opts) {
     const opt = document.createElement('option');
     opt.value = db.name;
@@ -3602,6 +3642,15 @@ connectSSE = async function() {
 
 // Boot: render the initial virtual space.
 queueRender();
+
+// Restore the session's saved key (the connect wrapper stores it in
+// sessionStorage): prefill the input and reconnect automatically so a
+// page reload does not force the user to retype the key and reconnect.
+if (savedKey) {
+  apiKeyInput.value = savedKey;
+  state.apiKey = savedKey;
+  connectSSE();
+}
 
 </script>
 </body>
